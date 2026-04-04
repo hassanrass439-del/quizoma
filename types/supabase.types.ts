@@ -105,6 +105,64 @@ export type Database = {
         }
         Relationships: []
       }
+      quiz_library: {
+        Row: {
+          id: string
+          owner_id: string
+          title: string
+          subject: string | null
+          mode: 'bluff' | 'annales'
+          total_questions: number
+          play_count: number
+          last_played_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          owner_id: string
+          title: string
+          subject?: string | null
+          mode: 'bluff' | 'annales'
+          total_questions: number
+          play_count?: number
+          last_played_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          title?: string
+          subject?: string | null
+          play_count?: number
+          last_played_at?: string | null
+        }
+        Relationships: []
+      }
+      quiz_questions: {
+        Row: {
+          id: string
+          quiz_id: string
+          index: number
+          question_text: string
+          vraie_reponse: string
+          synonymes: Json
+          explication: string | null
+        }
+        Insert: {
+          id?: string
+          quiz_id: string
+          index: number
+          question_text: string
+          vraie_reponse: string
+          synonymes?: Json
+          explication?: string | null
+        }
+        Update: {
+          question_text?: string
+          vraie_reponse?: string
+          synonymes?: Json
+          explication?: string | null
+        }
+        Relationships: []
+      }
       player_bluffs: {
         Row: {
           id: string

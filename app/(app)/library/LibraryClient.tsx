@@ -261,22 +261,15 @@ export function LibraryClient({ initialQuizzes }: Props) {
                   }}
                 >
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="icon-sm" variant="ghost" aria-label="Options">
-                        ···
-                      </Button>
+                    <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label="Options" />}>
+                      ···
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onSelect={() => startRename(quiz)}>
                         ✏️ Renommer
                       </DropdownMenuItem>
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onSelect={() => setDeleteTargetId(quiz.id)}
-                        >
-                          🗑️ Supprimer
-                        </DropdownMenuItem>
+                      <AlertDialogTrigger render={<DropdownMenuItem variant="destructive" onSelect={() => setDeleteTargetId(quiz.id)} />}>
+                        🗑️ Supprimer
                       </AlertDialogTrigger>
                     </DropdownMenuContent>
                   </DropdownMenu>
