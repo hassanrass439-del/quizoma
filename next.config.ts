@@ -1,7 +1,44 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
+import path from 'path'
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  // Fix workspace root detection — force le bon répertoire racine
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
 
-export default nextConfig;
+  // Optimisations images
+  images: {
+    formats: ['image/webp'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.dicebear.com',
+      },
+    ],
+  },
+
+  // Headers de sécurité
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+    ]
+  },
+
+  // Réduire le bundle en externalisant les modules lourds côté serveur
+  serverExternalPackages: ['pdf-parse', 'mammoth'],
+}
+
+export default nextConfig
