@@ -2,19 +2,56 @@ interface Props {
   questionText: string
   questionIndex: number
   totalQuestions: number
+  mode?: 1 | 2
 }
 
-export function QuestionCard({ questionText, questionIndex, totalQuestions }: Props) {
-  // Remplace ____ par un span stylisé
+export function QuestionCard({ questionText, questionIndex, totalQuestions, mode = 1 }: Props) {
+  if (mode === 2) {
+    // Mode QCM annales : sépare le stem des propositions A–E
+    const lines = questionText.split('\n').map((l) => l.trim()).filter(Boolean)
+    const propRegex = /^([A-E])[.)]\s*(.*)/i
+
+    const stemLines: string[] = []
+    const propositions: { letter: string; text: string }[] = []
+
+    for (const line of lines) {
+      const match = propRegex.exec(line)
+      if (match) {
+        propositions.push({ letter: match[1].toUpperCase(), text: match[2] })
+      } else if (propositions.length === 0) {
+        stemLines.push(line)
+      }
+    }
+
+    return (
+      <div className="w-full space-y-4">
+        {/* Stem */}
+        <p className="text-text text-base font-bold leading-relaxed text-left">
+          {stemLines.join(' ')}
+        </p>
+
+        {/* Propositions */}
+        {propositions.length > 0 && (
+          <div className="space-y-2">
+            {propositions.map(({ letter, text }) => (
+              <div key={letter} className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[#6c3ff5]/20 border border-[#6c3ff5]/40 flex items-center justify-center text-[#cbbeff] font-black text-xs">
+                  {letter}
+                </span>
+                <span className="text-text text-sm leading-relaxed pt-0.5">{text}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Mode bluff : phrase à trous
   const parts = questionText.split('____')
 
   return (
-    <div className="bg-surface-2 rounded-card border border-game-border p-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-muted-game uppercase tracking-wider">
-          Question {questionIndex + 1}/{totalQuestions}
-        </span>
-      </div>
+    <div className="w-full">
       <p className="text-text text-xl font-bold leading-relaxed text-center">
         {parts.map((part, i) => (
           <span key={i}>

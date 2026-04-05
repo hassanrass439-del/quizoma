@@ -9,24 +9,40 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-headline: var(--font-epilogue), 'Epilogue', sans-serif;
+  --font-body: var(--font-manrope), 'Manrope', sans-serif;
 
   /* Quizoma brand colors */
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-primary-light: #9B6FFF;
+  --color-primary-light: #cbbeff;
   --color-primary-dark: #4B1FC7;
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-  --color-success: #34D399;
+  --color-success: #45dfa4;
   --color-danger: #F87171;
   --color-warning: #FBBF24;
 
-  --color-surface-1: #0D0D1A;
-  --color-surface-2: #141428;
-  --color-surface-3: #1E1E3A;
-  --color-game-border: #2A2A4A;
-  --color-text: #E8E8F0;
-  --color-text-muted: #8888AA;
+  /* Stitch surface tokens */
+  --color-surface-1: #0d0d1a;
+  --color-surface-2: #1e1e2c;
+  --color-surface-3: #292937;
+  --color-surface-4: #343342;
+  --color-surface-bright: #383847;
+  --color-game-border: #484456;
+  --color-text: #e3e0f4;
+  --color-text-muted: #cac3d9;
+
+  /* Stitch extended palette */
+  --color-pc: #6c3ff5;
+  --color-on-pc: #e9e1ff;
+  --color-primary-tint: #cbbeff;
+  --color-tertiary: #45dfa4;
+  --color-tc: #007551;
+  --color-on-tc: #6bffc1;
+  --color-secondary-warm: #ffb59d;
+  --color-sc-warm: #b83900;
+  --color-outline-v: #484456;
 
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
@@ -56,25 +72,25 @@
 }
 
 :root {
-  /* Quizoma dark theme as default */
-  --background: #0D0D1A;
-  --foreground: #E8E8F0;
-  --card: #141428;
-  --card-foreground: #E8E8F0;
-  --popover: #141428;
-  --popover-foreground: #E8E8F0;
-  --primary: #6C3FF5;
-  --primary-foreground: #FFFFFF;
-  --secondary: #1E1E3A;
-  --secondary-foreground: #E8E8F0;
-  --muted: #1E1E3A;
-  --muted-foreground: #8888AA;
-  --accent: #FF6B35;
-  --accent-foreground: #FFFFFF;
+  /* Stitch-aligned dark theme */
+  --background: #12121f;
+  --foreground: #e3e0f4;
+  --card: #1e1e2c;
+  --card-foreground: #e3e0f4;
+  --popover: #1e1e2c;
+  --popover-foreground: #e3e0f4;
+  --primary: #6c3ff5;
+  --primary-foreground: #e9e1ff;
+  --secondary: #292937;
+  --secondary-foreground: #e3e0f4;
+  --muted: #292937;
+  --muted-foreground: #cac3d9;
+  --accent: #45dfa4;
+  --accent-foreground: #003825;
   --destructive: #F87171;
-  --border: #2A2A4A;
-  --input: #1E1E3A;
-  --ring: #6C3FF5;
+  --border: #484456;
+  --input: #1e1e2c;
+  --ring: #6c3ff5;
   --radius: 0.875rem;
 }
 
@@ -84,7 +100,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-geist-sans), system-ui, sans-serif;
+    font-family: var(--font-manrope), var(--font-geist-sans), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     /* Dynamic viewport height for mobile */
     min-height: 100dvh;
@@ -117,22 +133,31 @@
     min-height: 52px;
   }
   .text-game {
-    color: #E8E8F0;
+    color: #e3e0f4;
   }
   .text-muted-game {
-    color: #8888AA;
+    color: #cac3d9;
   }
   .bg-surface-1 {
-    background-color: #0D0D1A;
+    background-color: #0d0d1a;
   }
   .bg-surface-2 {
-    background-color: #141428;
+    background-color: #1e1e2c;
   }
   .bg-surface-3 {
-    background-color: #1E1E3A;
+    background-color: #292937;
+  }
+  .bg-surface-4 {
+    background-color: #343342;
   }
   .border-game {
-    border-color: #2A2A4A;
+    border-color: #484456;
+  }
+  .font-headline {
+    font-family: var(--font-epilogue), 'Epilogue', sans-serif;
+  }
+  .radial-glow {
+    background: radial-gradient(circle at 0% 0%, rgba(108, 63, 245, 0.15) 0%, transparent 50%);
   }
 }
 

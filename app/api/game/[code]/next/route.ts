@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { serverBroadcast } from '@/lib/supabase/broadcast'
+import { solveQCMQuestion } from '@/lib/ai/solveQCMQuestion'
 
 interface Params {
   params: Promise<{ code: string }>
@@ -70,15 +71,33 @@ export async function POST(req: NextRequest, { params }: Params) {
 
       console.log('[next] nextQuestion:', nextQuestion?.id ?? 'NOT FOUND')
       if (!nextQuestion) {
-        return NextResponse.json({ error: 'Question suivante non disponible (génération en cours)' }, { status: 202 })
+        return NextResponse.json({ error: 'Question suivante non disponible' }, { status: 202 })
       }
+
+      // Mode annales : résoudre la question si pas encore de réponse
+      let solvedExtras: { vraie_reponse: string; explication: string } | null = null
+      if (!nextQuestion.vraie_reponse) {
+        try {
+          const solved = await solveQCMQuestion(nextQuestion.question_text)
+          await serviceSupabase
+            .from('questions')
+            .update({ vraie_reponse: solved.vraie_combinaison, explication: solved.explications })
+            .eq('id', nextQuestion.id)
+          solvedExtras = { vraie_reponse: solved.vraie_combinaison, explication: solved.explications }
+          console.log('[next] QCM solved:', solved.vraie_combinaison)
+        } catch (err) {
+          console.error('[next] QCM solve error:', err)
+        }
+      }
+
+      const broadcastQuestion = solvedExtras ? { ...nextQuestion, ...solvedExtras } : nextQuestion
 
       const updatedConfig = { ...gameConfig, current_question_index: nextIndex }
       await serviceSupabase.from('games').update({ status: 'question', config: updatedConfig }).eq('id', game.id)
       await serverBroadcast(`game:${code}`, 'GAME_STATE_CHANGE', {
         status: 'question',
         question_index: nextIndex,
-        question_data: nextQuestion,
+        question_data: broadcastQuestion,
       })
     }
 

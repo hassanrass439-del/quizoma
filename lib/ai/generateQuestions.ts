@@ -9,11 +9,11 @@ export async function generateQuestions(chunk: string, count = 3): Promise<Gener
     generationConfig: { responseMimeType: 'application/json', temperature: 0.7 },
   }
 
-  console.log('[Gemini] Sending request to gemini-2.5-flash...')
+  console.log('[Gemini] Sending request to gemini-2.5-flash-lite...')
   console.log('[Gemini] Payload keys:', Object.keys(payload))
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -1,7 +1,14 @@
 import { SYSTEM_PROMPT_MODE2 } from './prompts'
-import type { ParseQCMResponse } from '@/types/ai.types'
 
-export async function parseQCM(qcmText: string): Promise<ParseQCMResponse> {
+export interface SolvedQCM {
+  vraie_combinaison: string
+  explications: string
+}
+
+/**
+ * Envoie UN bloc QCM à Gemini et retourne la combinaison correcte + les explications.
+ */
+export async function solveQCMQuestion(questionText: string): Promise<SolvedQCM> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
@@ -9,8 +16,8 @@ export async function parseQCM(qcmText: string): Promise<ParseQCMResponse> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT_MODE2 }] },
-        contents: [{ role: 'user', parts: [{ text: qcmText }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
+        contents: [{ role: 'user', parts: [{ text: questionText }] }],
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
       }),
     }
   )
@@ -24,7 +31,15 @@ export async function parseQCM(qcmText: string): Promise<ParseQCMResponse> {
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
 
   try {
-    return JSON.parse(text) as ParseQCMResponse
+    const parsed = JSON.parse(text) as SolvedQCM
+    // Normalise la combinaison : trie les lettres alphabétiquement et met en majuscules
+    parsed.vraie_combinaison = parsed.vraie_combinaison
+      .toUpperCase()
+      .replace(/[^A-E]/g, '')
+      .split('')
+      .sort()
+      .join('')
+    return parsed
   } catch {
     throw new Error(`Réponse IA invalide : ${text.slice(0, 200)}`)
   }

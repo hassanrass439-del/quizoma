@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { generateQuestions } from '@/lib/ai/generateQuestions'
-import { parseQCM } from '@/lib/ai/parseQCM'
 import { chunkText, cleanText } from '@/lib/parsers/chunkText'
+import { parseQCMBlocks } from '@/lib/parsers/parseQCMBlocks'
 import { generateGameCode } from '@/lib/utils/generateCode'
 import { z } from 'zod'
 
@@ -101,18 +101,34 @@ export async function POST(req: NextRequest) {
       console.log('[create] questions insert error:', qInsertErr)
       console.log('[create] questions inserted count:', insertedQ?.length ?? 0)
     } else {
-      // Mode Annales : analyser le QCM
-      const qcmResult = await parseQCM(cleanedText)
+      // Mode Annales : découper en blocs QCM individuels
+      const blocks = parseQCMBlocks(cleanedText)
+      console.log('[create] QCM blocks found:', blocks.length)
 
-      const { error: qInsertErr } = await serviceSupabase.from('questions').insert({
-        game_id: game.id,
-        index: 0,
-        question_text: cleanedText.slice(0, 500),
-        vraie_reponse: qcmResult.vraie_combinaison,
-        synonymes: [],
-        explication: qcmResult.explications,
-      })
+      // Si aucun bloc détecté, traiter tout le texte comme une seule question
+      const questionsToInsert = blocks.length > 0 ? blocks : [cleanedText]
+      const finalBlocks = questionsToInsert.slice(0, config.nb_questions)
+
+      const { error: qInsertErr } = await serviceSupabase.from('questions').insert(
+        finalBlocks.map((block, i) => ({
+          game_id: game.id,
+          index: i,
+          question_text: block,
+          vraie_reponse: '', // Sera résolu par l'IA au moment de la question
+          synonymes: [],
+          explication: '',
+        }))
+      )
       if (qInsertErr) console.error('[create] questions insert error:', qInsertErr)
+
+      // Mettre à jour nb_questions avec le nombre réel de blocs insérés
+      if (finalBlocks.length !== config.nb_questions) {
+        await serviceSupabase
+          .from('games')
+          .update({ config: { nb_questions: finalBlocks.length, timer_seconds: config.timer_seconds } })
+          .eq('id', game.id)
+      }
+      console.log('[create] inserted', finalBlocks.length, 'QCM questions (unsolved)')
     }
 
     return NextResponse.json({ code })

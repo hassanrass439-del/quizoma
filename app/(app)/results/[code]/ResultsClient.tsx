@@ -148,7 +148,7 @@ export function ResultsClient({ code, gameId, ranking, questions }: Props) {
             </Button>
           </Link>
 
-          <Link href="/dashboard">
+          <Link href="/dashboard" className="mt-2 block">
             <Button className="w-full min-button bg-surface-2 border border-game-border text-text hover:bg-surface-3 rounded-button font-semibold gap-2">
               <Home size={18} />
               Retour à l&apos;accueil

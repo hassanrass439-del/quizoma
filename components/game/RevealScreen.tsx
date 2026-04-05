@@ -12,11 +12,13 @@ interface Props {
   onNext: () => void
   questionIndex: number
   totalQuestions: number
+  currentUserId: string
 }
 
-export function RevealScreen({ payload, isHost, onNext, questionIndex, totalQuestions }: Props) {
+export function RevealScreen({ payload, isHost, onNext, questionIndex, totalQuestions, currentUserId }: Props) {
   const [explanationOpen, setExplanationOpen] = useState(false)
   const isLastQuestion = questionIndex >= totalQuestions - 1
+  const myGain = payload.scores?.[currentUserId] ?? 0
 
   return (
     <div className="flex flex-col gap-4">
@@ -32,6 +34,16 @@ export function RevealScreen({ payload, isHost, onNext, questionIndex, totalQues
             {payload.correct_answer}
           </p>
         </div>
+        {myGain > 0 && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.3, type: 'spring' }}
+            className="bg-[#45dfa4]/20 border border-[#45dfa4]/40 rounded-full px-4 py-1.5"
+          >
+            <span className="text-[#45dfa4] font-black text-lg">+{myGain} pts</span>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Bluffs */}

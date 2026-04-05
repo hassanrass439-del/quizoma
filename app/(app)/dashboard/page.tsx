@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { JoinGameForm } from '@/components/dashboard/JoinGameForm'
 import { getAvatar, avatarUrl } from '@/lib/avatars'
 import Image from 'next/image'
-import { Plus, BookOpen, Gamepad2, Trophy, ChevronRight, Sparkles } from 'lucide-react'
+import { ChevronRight, BookOpen } from 'lucide-react'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -33,99 +33,100 @@ export default async function DashboardPage() {
     : 0
 
   return (
-    <div className="flex flex-col min-h-full bg-surface-1">
+    <div className="min-h-full bg-[#12121f] pb-32 radial-glow">
 
-      {/* Header hero */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-primary/20 via-surface-2 to-surface-1 px-4 pt-12 pb-6">
-        {/* Déco background */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-accent/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative flex items-center gap-4">
+      {/* Header */}
+      <header className="flex justify-between items-center w-full px-6 py-8">
+        <div className="flex items-center gap-4">
           <Link href="/profile">
-            <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-primary/40 ring-offset-2 ring-offset-surface-1 shrink-0">
+            <div className="w-12 h-12 rounded-full bg-surface-3 overflow-hidden border-2 border-[#6c3ff5]/20">
               <Image
-                src={avatarUrl(avatar.seed, avatar.bg, 128)}
+                src={avatarUrl(avatar.seed, avatar.bg, 96)}
                 alt={avatar.name}
-                width={64}
-                height={64}
+                width={48}
+                height={48}
                 className="w-full h-full object-cover"
                 unoptimized
               />
             </div>
           </Link>
-          <div className="flex-1 min-w-0">
-            <p className="text-muted-game text-xs font-semibold uppercase tracking-wider">Bonjour 👋</p>
-            <h1 className="text-2xl font-black text-text truncate">{profile.pseudo}</h1>
-            <div className="flex items-center gap-1 mt-0.5">
-              <Sparkles size={12} className="text-warning" />
-              <p className="text-muted-game text-xs">{profile.total_games} partie{profile.total_games !== 1 ? 's' : ''} jouée{profile.total_games !== 1 ? 's' : ''}</p>
-            </div>
+          <div className="flex flex-col">
+            <span className="text-[13px] text-text-muted leading-none">Bonsoir,</span>
+            <span className="text-[20px] font-black text-text font-headline tracking-tight">
+              {profile.pseudo} 👋
+            </span>
           </div>
         </div>
+        <Link href="/profile" className="w-11 h-11 flex items-center justify-center bg-surface-2 rounded-xl text-text hover:bg-surface-3 transition-colors">
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+        </Link>
+      </header>
 
-        {/* Stats mini */}
-        <div className="grid grid-cols-3 gap-2 mt-5">
+      <main className="px-6 space-y-8">
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Parties', value: profile.total_games, icon: Gamepad2, color: 'text-primary-light', bg: 'bg-primary/10' },
-            { label: 'Score', value: profile.total_score, icon: Trophy, color: 'text-warning', bg: 'bg-warning/10' },
-            { label: 'Moyenne', value: avgScore, icon: Sparkles, color: 'text-success', bg: 'bg-success/10' },
-          ].map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className={`${bg} rounded-2xl p-3 text-center`}>
-              <Icon size={16} className={`${color} mx-auto mb-1`} />
-              <p className="text-text font-black text-xl leading-none">{value}</p>
-              <p className="text-muted-game text-[10px] font-semibold mt-1 uppercase tracking-wide">{label}</p>
+            { value: profile.total_games, label: 'Parties' },
+            { value: profile.total_score, label: 'Points' },
+            { value: avgScore, label: 'Moyenne' },
+          ].map(({ value, label }) => (
+            <div key={label} className="bg-[#0d0d1a] border-l-4 border-[#6c3ff5] rounded-[14px] p-4 flex flex-col justify-center shadow-sm">
+              <span className="text-2xl font-black text-primary-tint font-headline">{value}</span>
+              <span className="text-[11px] uppercase tracking-wider text-text-muted font-semibold">{label}</span>
             </div>
           ))}
         </div>
-      </div>
 
-      <div className="flex-1 px-4 py-5 space-y-6">
+        {/* Primary CTA — Créer une partie */}
+        <Link href="/create">
+          <section className="relative overflow-hidden h-[140px] rounded-[18px] bg-gradient-to-br from-[#6c3ff5] to-[#340098] p-6 flex items-center justify-between shadow-[0_12px_30px_-10px_rgba(108,63,245,0.4)] active:scale-[0.98] transition-transform">
+            <div className="absolute inset-0 opacity-10 pointer-events-none">
+              <svg height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" width="100%">
+                <path d="M0 0 L100 100 M100 0 L0 100" fill="none" stroke="white" strokeWidth="0.5" />
+                <circle cx="50" cy="50" fill="none" r="40" stroke="white" strokeWidth="0.5" />
+              </svg>
+            </div>
+            <div className="relative z-10 flex flex-col justify-center">
+              <h2 className="text-2xl font-extrabold text-[#e9e1ff] font-headline tracking-tight">Créer une partie</h2>
+              <p className="text-[#e9e1ff]/70 text-sm mt-1">Importe tes notes, l&apos;IA fait le reste</p>
+            </div>
+            <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+              <svg className="w-8 h-8 text-[#e9e1ff]" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            </div>
+          </section>
+        </Link>
 
-        {/* Rejoindre une partie */}
-        <div className="space-y-3">
-          <h2 className="text-text font-black text-base flex items-center gap-2">
-            Rejoindre une partie
-          </h2>
+        {/* Secondary — Rejoindre */}
+        <section className="mt-4 rounded-[18px] bg-surface-2 border-[1.5px] border-dashed border-[#6c3ff5]/50 px-5 py-4">
+          <div className="flex items-center gap-3 mb-3">
+            <BookOpen size={20} className="text-[#6c3ff5]" />
+            <span className="font-bold text-lg text-text font-headline">Rejoindre avec un code</span>
+          </div>
           <JoinGameForm />
-        </div>
+        </section>
 
-        {/* Actions */}
-        <div className="space-y-3">
-          <h2 className="text-text font-black text-base">Créer</h2>
-
-          <Link href="/create">
-            <div className="w-full flex items-center gap-4 bg-gradient-to-r from-primary/20 to-primary/5 border border-primary/30 rounded-2xl p-4 hover:border-primary/60 transition-all active:scale-[0.98]">
-              <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center shrink-0">
-                <Plus size={24} className="text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-text font-bold">Nouvelle partie</p>
-                <p className="text-muted-game text-xs mt-0.5">Importer un cours, générer avec l&apos;IA</p>
-              </div>
-              <ChevronRight size={18} className="text-muted-game" />
+        {/* Ma bibliothèque */}
+        <Link href="/library">
+          <section className="group h-[72px] rounded-[18px] bg-surface-2 border-[1.5px] border-[#484456]/40 px-5 flex items-center justify-between hover:bg-surface-3 hover:border-[#6c3ff5]/40 transition-all cursor-pointer">
+            <div className="flex items-center gap-4">
+              <span className="text-2xl">📚</span>
+              <span className="font-bold text-lg text-text font-headline">Ma bibliothèque</span>
             </div>
-          </Link>
+            <ChevronRight size={18} className="text-text-muted" />
+          </section>
+        </Link>
 
-          <Link href="/library">
-            <div className="w-full flex items-center gap-4 bg-surface-2 border border-game-border rounded-2xl p-4 hover:border-primary/30 transition-all active:scale-[0.98] mt-2">
-              <div className="w-12 h-12 bg-accent/20 rounded-2xl flex items-center justify-center shrink-0">
-                <BookOpen size={22} className="text-accent" />
-              </div>
-              <div className="flex-1">
-                <p className="text-text font-bold">Ma bibliothèque</p>
-                <p className="text-muted-game text-xs mt-0.5">Rejouer un quiz sauvegardé</p>
-              </div>
-              <ChevronRight size={18} className="text-muted-game" />
-            </div>
-          </Link>
-        </div>
-
-        {/* Historique */}
+        {/* Parties récentes */}
         {recentGames && recentGames.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="text-text font-black text-base">Parties récentes</h2>
-            <div className="space-y-2">
+          <div className="space-y-4 mt-4">
+            <div className="flex justify-between items-end">
+              <h3 className="text-xl font-bold text-text font-headline">Parties récentes</h3>
+              <Link href="/results" className="text-primary-tint text-sm font-semibold hover:underline">Tout voir</Link>
+            </div>
+            <div className="space-y-4">
               {recentGames.map((gp) => {
                 const game = Array.isArray(gp.games) ? gp.games[0] : gp.games
                 if (!game) return null
@@ -135,28 +136,31 @@ export default async function DashboardPage() {
                   <Link
                     key={gp.game_id}
                     href={isFinished ? `/results/${g.code}` : `/lobby/${g.code}`}
-                    className="bg-surface-2 border border-game-border rounded-2xl px-4 py-3 flex items-center justify-between hover:border-primary/40 transition-all active:scale-[0.98]"
+                    className="bg-surface-3 rounded-[18px] p-4 flex flex-col gap-3 shadow-lg block"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${
-                        g.mode === 'bluff' ? 'bg-primary/15' : 'bg-accent/15'
-                      }`}>
-                        {g.mode === 'bluff' ? '🎭' : '📝'}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`px-3 py-1 rounded-full text-[10px] font-black font-headline ${
+                          g.mode === 'bluff'
+                            ? 'bg-[#6c3ff5]/20 text-[#e7deff]'
+                            : 'bg-[#b83900]/20 text-[#ffb59d]'
+                        }`}>
+                          {g.mode === 'bluff' ? 'BLUFF' : 'QCM'}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-text text-base font-mono tracking-wider">{g.code}</span>
+                          <span className="text-xs text-text-muted capitalize">Mode {g.mode}</span>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-text font-bold font-mono text-sm tracking-wider">{g.code}</p>
-                        <p className="text-muted-game text-xs capitalize">Mode {g.mode}</p>
+                      <div className="bg-[#007551]/30 text-[#45dfa4] px-3 py-1 rounded-full text-xs font-bold">
+                        +{gp.score} pts
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-primary-light font-black">{gp.score} pts</p>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                        isFinished
-                          ? 'bg-success/15 text-success'
-                          : 'bg-warning/15 text-warning'
-                      }`}>
-                        {isFinished ? 'Terminée' : 'En cours'}
-                      </span>
+                    <div className="w-full bg-surface-2 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-primary-tint h-full rounded-full shadow-[0_0_8px_rgba(203,190,255,0.4)]"
+                        style={{ width: isFinished ? '100%' : '50%' }}
+                      />
                     </div>
                   </Link>
                 )
@@ -165,7 +169,7 @@ export default async function DashboardPage() {
           </div>
         )}
 
-      </div>
+      </main>
     </div>
   )
 }

@@ -1,8 +1,8 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { FileText, AlignLeft, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Loader2, CloudUpload, Info } from 'lucide-react'
+import { useGoogleDrivePicker } from '@/hooks/useGoogleDrivePicker'
 
 interface Props {
   onFileSelect: (file: File) => void
@@ -15,18 +15,13 @@ export function UploadZone({ onFileSelect, onTextPaste, isProcessing, wordCount 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showTextArea, setShowTextArea] = useState(false)
   const [pastedText, setPastedText] = useState('')
+  const { openPicker } = useGoogleDrivePicker(onFileSelect)
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-
-    const maxSize = 10 * 1024 * 1024 // 10 Mo
-    if (file.size > maxSize) {
-      alert('Fichier trop volumineux (max 10 Mo)')
-      return
-    }
+    if (file.size > 10 * 1024 * 1024) { alert('Fichier trop volumineux (max 10 Mo)'); return }
     onFileSelect(file)
-    // Reset input pour pouvoir sélectionner le même fichier à nouveau
     e.target.value = ''
   }
 
@@ -40,12 +35,10 @@ export function UploadZone({ onFileSelect, onTextPaste, isProcessing, wordCount 
 
   if (isProcessing) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 bg-surface-2 border border-game-border rounded-card p-8">
-        <Loader2 size={32} className="text-primary animate-spin" />
-        <p className="text-text font-semibold">Extraction en cours…</p>
-        <p className="text-muted-game text-sm text-center">
-          Analyse du document et détection des chapitres
-        </p>
+      <div className="flex flex-col items-center justify-center gap-3 bg-surface-2 border border-[#484456]/30 rounded-[18px] p-8">
+        <Loader2 size={32} className="text-[#6c3ff5] animate-spin" />
+        <p className="text-text font-semibold font-headline">Extraction en cours…</p>
+        <p className="text-text-muted text-sm text-center">Analyse du document et détection des chapitres</p>
       </div>
     )
   }
@@ -58,28 +51,27 @@ export function UploadZone({ onFileSelect, onTextPaste, isProcessing, wordCount 
             value={pastedText}
             onChange={(e) => setPastedText(e.target.value)}
             placeholder="Colle ton cours ici (minimum 100 mots)…"
-            className="w-full min-h-[200px] bg-surface-3 border border-game-border rounded-xl p-4 text-text placeholder:text-muted-game resize-none focus:outline-none focus:border-primary text-sm"
+            className="w-full min-h-[200px] bg-[#0d0d1a] border border-[#484456] rounded-xl p-4 text-text placeholder:text-text-muted resize-none focus:outline-none focus:border-[#6c3ff5] text-sm"
             autoFocus
           />
-          <span className={`absolute bottom-3 right-3 text-xs ${words < 100 ? 'text-danger' : 'text-success'}`}>
+          <span className={`absolute bottom-3 right-3 text-xs font-bold ${words < 100 ? 'text-danger' : 'text-[#45dfa4]'}`}>
             {words} mots
           </span>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
+          <button
             onClick={() => setShowTextArea(false)}
-            className="flex-1 border-game-border text-muted-game hover:bg-surface-3"
+            className="flex-1 h-12 rounded-xl border border-[#484456] text-text-muted hover:bg-surface-3 transition-colors font-semibold"
           >
             Annuler
-          </Button>
-          <Button
+          </button>
+          <button
             onClick={handleTextSubmit}
             disabled={words < 100}
-            className="flex-1 bg-primary hover:bg-primary-dark font-bold"
+            className="flex-1 h-12 rounded-xl bg-[#6c3ff5] text-[#e9e1ff] font-headline font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
           >
             Utiliser ce texte
-          </Button>
+          </button>
         </div>
       </div>
     )
@@ -87,37 +79,76 @@ export function UploadZone({ onFileSelect, onTextPaste, isProcessing, wordCount 
 
   return (
     <div className="space-y-3">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf,.docx,.txt"
-        onChange={handleFileChange}
-        hidden
-      />
+      <input ref={fileInputRef} type="file" accept=".pdf,.docx,.txt" onChange={handleFileChange} hidden />
 
-      <Button
-        onClick={() => fileInputRef.current?.click()}
-        variant="outline"
-        className="w-full min-button border-game-border bg-surface-2 text-text hover:bg-surface-3 rounded-button font-semibold justify-start gap-3"
+      {/* Option A — PDF/Word (Recommended) */}
+      <div className="relative cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+        <div className="absolute -top-2.5 right-4 z-10 bg-[#6c3ff5] text-[#e9e1ff] text-[10px] font-black px-2.5 py-0.5 rounded-full tracking-wider shadow-lg">
+          RECOMMANDÉ
+        </div>
+        <div className="flex items-center gap-4 bg-surface-2 h-[92px] px-4 rounded-xl border border-[#6c3ff5]/20 hover:border-[#6c3ff5]/60 transition-colors">
+          <div className="w-12 h-12 flex-shrink-0 bg-[#6c3ff5]/20 rounded-full flex items-center justify-center">
+            <svg className="w-6 h-6 text-[#cbbeff]" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div className="flex-grow">
+            <h3 className="font-bold text-text text-base">Fichier PDF ou Word</h3>
+            <p className="text-text-muted text-xs">Jusqu&apos;à 10 Mo · .pdf .docx .txt</p>
+          </div>
+          <svg className="w-5 h-5 text-[#cbbeff]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+      </div>
+
+      {/* Option B — Google Drive */}
+      <div
+        className="flex items-center gap-4 bg-surface-2 h-[76px] px-4 rounded-xl border border-[#484456]/20 hover:bg-surface-3 transition-colors cursor-pointer relative"
+        onClick={openPicker}
       >
-        <FileText size={20} className="text-primary" />
-        Importer un fichier
-        <span className="text-muted-game text-xs ml-auto">PDF · DOCX · TXT</span>
-      </Button>
+        <div className="w-10 h-10 flex-shrink-0 bg-surface-3 rounded-full flex items-center justify-center">
+          <svg viewBox="0 0 87.3 78" width={20} height={20} aria-hidden>
+            <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3L27.5 53H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+            <path d="M43.65 25L29.9 0c-1.35.8-2.5 1.9-3.3 3.3L1.2 48.5A9.06 9.06 0 000 53h27.5z" fill="#00ac47"/>
+            <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.5z" fill="#ea4335"/>
+            <path d="M43.65 25L57.4 0H29.9z" fill="#00832d"/>
+            <path d="M59.8 53H87.3L73.55 29.5 57.4 0H43.65L59.8 53z" fill="#2684fc"/>
+            <path d="M59.8 53H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#ffba00"/>
+          </svg>
+        </div>
+        <div className="flex-grow">
+          <h3 className="font-bold text-text text-base">Google Drive</h3>
+          <p className="text-text-muted text-xs">PDF · DOCX · Google Docs</p>
+        </div>
+      </div>
 
-      <Button
+      {/* Option C — Paste text */}
+      <div
+        className="flex items-center gap-4 bg-surface-2 h-[76px] px-4 rounded-xl border border-[#484456]/20 hover:bg-surface-3 transition-colors cursor-pointer"
         onClick={() => setShowTextArea(true)}
-        variant="outline"
-        className="w-full min-button border-game-border bg-surface-2 text-text hover:bg-surface-3 rounded-button font-semibold justify-start gap-3"
       >
-        <AlignLeft size={20} className="text-primary" />
-        Coller du texte
-      </Button>
+        <div className="w-10 h-10 flex-shrink-0 bg-surface-3 rounded-full flex items-center justify-center">
+          <svg className="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </div>
+        <div className="flex-grow">
+          <h3 className="font-bold text-text text-base">Coller du texte</h3>
+          <p className="text-text-muted text-xs">Copie-colle ton contenu de cours</p>
+        </div>
+      </div>
+
+      {/* Drop zone */}
+      <div className="w-full h-[100px] rounded-xl flex flex-col items-center justify-center bg-[#6c3ff5]/5 gap-2 transition-all hover:bg-[#6c3ff5]/10 border-2 border-dashed border-[#6c3ff5]/40 cursor-pointer"
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <CloudUpload size={28} className="text-[#cbbeff]/60" />
+        <p className="text-text-muted text-sm font-medium">Dépose un fichier ici</p>
+      </div>
+
+      {/* Hint */}
+      <div className="flex items-start gap-3 px-4 py-3 bg-[#0d0d1a] rounded-xl border border-[#484456]/20">
+        <Info size={18} className="text-text-muted flex-shrink-0 mt-0.5" />
+        <p className="text-text-muted text-[13px] leading-snug">Minimum 100 mots requis pour générer les questions.</p>
+      </div>
 
       {wordCount > 0 && (
-        <p className="text-success text-sm text-center">
-          ✓ {wordCount} mots extraits
-        </p>
+        <p className="text-[#45dfa4] text-sm text-center font-semibold">✓ {wordCount} mots extraits</p>
       )}
     </div>
   )
