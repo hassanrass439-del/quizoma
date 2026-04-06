@@ -20,6 +20,7 @@ export interface GameSyncState {
   revealPayload: RevealPayload | null
   finalRanking: FinalRankingEntry[] | null
   connectionStatus: ConnectionStatus
+  submittedPlayers: string[]
 }
 
 interface InitialState {
@@ -37,6 +38,7 @@ export function useGameSync(code: string, initial?: InitialState) {
     revealPayload: null,
     finalRanking: null,
     connectionStatus: 'connecting',
+    submittedPlayers: [],
   })
 
   useEffect(() => {
@@ -53,6 +55,16 @@ export function useGameSync(code: string, initial?: InitialState) {
           questionData: p.question_data ?? null,
           votePayload: null,
           revealPayload: null,
+          submittedPlayers: [],
+        }))
+      })
+      .on('broadcast', { event: 'PLAYER_SUBMITTED' }, ({ payload }) => {
+        const p = payload as { user_id: string }
+        setState((prev) => ({
+          ...prev,
+          submittedPlayers: prev.submittedPlayers.includes(p.user_id)
+            ? prev.submittedPlayers
+            : [...prev.submittedPlayers, p.user_id],
         }))
       })
       .on('broadcast', { event: 'START_VOTE' }, ({ payload }) => {

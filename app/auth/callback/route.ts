@@ -16,12 +16,27 @@ export async function GET(req: NextRequest) {
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('pseudo')
+          .select('pseudo, avatar_id')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
-        if (!profile?.pseudo || profile.pseudo === 'Joueur') {
-          return NextResponse.redirect(new URL('/onboarding', req.url))
+        // Première connexion Google : created_at ≈ last_sign_in_at (écart < 10s)
+        const createdAt = new Date(user.created_at).getTime()
+        const lastSignIn = new Date(user.last_sign_in_at ?? user.created_at).getTime()
+        const isFirstLogin = Math.abs(lastSignIn - createdAt) < 10000
+
+        const needsOnboarding =
+          !profile ||
+          !profile.pseudo ||
+          profile.pseudo === 'Joueur' ||
+          !profile.avatar_id ||
+          isFirstLogin
+
+        if (needsOnboarding) {
+          const onboardingUrl = next !== '/dashboard'
+            ? `/onboarding?next=${encodeURIComponent(next)}`
+            : '/onboarding'
+          return NextResponse.redirect(new URL(onboardingUrl, req.url))
         }
       }
       return NextResponse.redirect(new URL(next, req.url))

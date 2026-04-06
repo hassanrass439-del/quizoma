@@ -141,7 +141,7 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
         {/* Players */}
         <section className="space-y-6">
           <div className="flex justify-between items-end">
-            <h3 className="font-headline font-extrabold text-lg text-text">Joueurs ({players.length}/8)</h3>
+            <h3 className="font-headline font-extrabold text-lg text-text">Joueurs ({players.length}/7)</h3>
             <div className="flex items-center gap-2 text-text-muted text-xs font-bold">
               <span>Attente</span>
               <span className="flex gap-0.5">

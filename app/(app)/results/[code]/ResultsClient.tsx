@@ -2,11 +2,11 @@
 
 import { Suspense, lazy, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { MobileHeader } from '@/components/layout/MobileHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Download, RotateCcw, Home, BookMarked, X } from 'lucide-react'
-import { exportFlashcardsCSV } from '@/lib/utils/exportCSV'
+import { RotateCcw, Home, BookMarked, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Profile, Question } from '@/types/game.types'
 
@@ -19,10 +19,13 @@ interface Props {
   gameId: string
   ranking: Array<{ player: Profile; score: number; rank: number }>
   questions: Question[]
+  isHost: boolean
+  hasSource: boolean
 }
 
-export function ResultsClient({ code, gameId, ranking, questions }: Props) {
-  const [saveState, setSaveState] = useState<'banner' | 'form' | 'saved' | 'dismissed'>('banner')
+export function ResultsClient({ code, gameId, ranking, questions, isHost, hasSource }: Props) {
+  const router = useRouter()
+  const [saveState, setSaveState] = useState<'idle' | 'form' | 'saved'>('idle')
   const [quizTitle, setQuizTitle] = useState(`Quiz du ${new Date().toLocaleDateString('fr-FR')}`)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -60,98 +63,86 @@ export function ResultsClient({ code, gameId, ranking, questions }: Props) {
           <PodiumFinal ranking={ranking} />
         </Suspense>
 
-        {/* Bannière sauvegarde bibliothèque */}
-        {saveState === 'banner' && questions.length > 0 && (
-          <div className="bg-primary/10 border border-primary/30 rounded-xl p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <BookMarked size={20} className="text-primary-light shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-text font-semibold text-sm">Sauvegarder ce quiz ?</p>
-                  <p className="text-muted-game text-xs mt-0.5">Rejoue-le plus tard sans re-uploader</p>
-                </div>
-              </div>
-              <button onClick={() => setSaveState('dismissed')} className="text-muted-game hover:text-text">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="flex gap-2 mt-3">
-              <Button
-                onClick={() => setSaveState('form')}
-                className="flex-1 bg-primary hover:bg-primary-dark text-white font-bold rounded-xl py-2 text-sm"
-              >
-                Oui, sauvegarder
-              </Button>
-              <Button
-                onClick={() => setSaveState('dismissed')}
-                variant="outline"
-                className="flex-1 border-game-border bg-surface-2 text-muted-game rounded-xl py-2 text-sm"
-              >
-                Non merci
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {saveState === 'form' && (
-          <div className="bg-surface-2 border border-game-border rounded-xl p-4 space-y-3">
-            <p className="text-text font-semibold text-sm">Nom du quiz dans ta bibliothèque</p>
-            <Input
-              value={quizTitle}
-              onChange={(e) => setQuizTitle(e.target.value)}
-              placeholder="Ex: Pharmacologie Ch.3"
-              maxLength={100}
-              className="min-input bg-surface-3 border-game-border text-text"
-            />
-            <Button
-              onClick={handleSave}
-              disabled={isSaving || !quizTitle.trim()}
-              className="w-full bg-primary hover:bg-primary-dark text-white font-bold rounded-xl"
-            >
-              {isSaving ? 'Sauvegarde...' : '💾 Sauvegarder dans ma bibliothèque'}
-            </Button>
-          </div>
-        )}
-
-        {saveState === 'saved' && (
-          <div className="bg-success/10 border border-success/30 rounded-xl px-4 py-3 flex items-center gap-3">
-            <BookMarked size={18} className="text-success shrink-0" />
-            <div>
-              <p className="text-success font-semibold text-sm">Quiz sauvegardé !</p>
-              <Link href="/library" className="text-primary-light text-xs underline">
-                Voir ma bibliothèque →
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* Actions */}
+        {/* ── Actions ── */}
         <div className="space-y-3">
-          {questions.length > 0 && (
-            <Button
-              onClick={() => exportFlashcardsCSV(questions)}
-              variant="outline"
-              className="w-full min-button border-game-border bg-surface-2 text-text hover:bg-surface-3 rounded-button font-semibold gap-2"
+
+          {/* Action A — Continuer avec un autre axe (host only) */}
+          {isHost && hasSource && (
+            <button
+              onClick={() => router.push(`/create?reuse=${code}`)}
+              className="w-full flex items-center gap-4 bg-[#6c3ff5]/10 border border-[#6c3ff5]/30 rounded-xl p-4 text-left hover:bg-[#6c3ff5]/20 transition-all active:scale-[0.98]"
             >
-              <Download size={18} />
-              Exporter les flashcards (.csv)
-            </Button>
+              <span className="text-2xl">🔄</span>
+              <div className="flex-1">
+                <p className="text-text font-bold text-sm">Continuer avec un autre axe</p>
+                <p className="text-text-muted text-xs">Rejouer sur un autre chapitre du même cours</p>
+              </div>
+            </button>
           )}
 
-          <Link href="/create">
-            <Button
-              variant="outline"
-              className="w-full min-button border-primary/30 bg-primary/10 text-primary-light hover:bg-primary/20 rounded-button font-semibold gap-2"
+          {/* Action B — Sauvegarder (host only) */}
+          {isHost && saveState === 'idle' && questions.length > 0 && (
+            <button
+              onClick={() => setSaveState('form')}
+              className="w-full flex items-center gap-4 bg-surface-2 border border-game-border rounded-xl p-4 text-left hover:bg-surface-3 transition-all active:scale-[0.98]"
             >
-              <RotateCcw size={18} />
-              Rejouer avec le même cours
-            </Button>
-          </Link>
+              <span className="text-2xl">💾</span>
+              <div className="flex-1">
+                <p className="text-text font-bold text-sm">Enregistrer dans ma bibliothèque</p>
+                <p className="text-text-muted text-xs">Rejouer ce quiz plus tard sans re-uploader</p>
+              </div>
+              <BookMarked size={18} className="text-text-muted" />
+            </button>
+          )}
 
-          <Link href="/dashboard" className="mt-2 block">
+          {saveState === 'form' && (
+            <div className="bg-surface-2 border border-game-border rounded-xl p-4 space-y-3">
+              <p className="text-text font-semibold text-sm">Nom du quiz</p>
+              <Input
+                value={quizTitle}
+                onChange={(e) => setQuizTitle(e.target.value)}
+                placeholder="Ex: Pharmacologie Ch.3"
+                maxLength={100}
+                className="min-input bg-surface-3 border-game-border text-text"
+              />
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving || !quizTitle.trim()}
+                  className="flex-1 bg-primary hover:bg-primary-dark text-white font-bold rounded-xl"
+                >
+                  {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+                </Button>
+                <Button
+                  onClick={() => setSaveState('idle')}
+                  variant="outline"
+                  className="border-game-border bg-surface-2 text-muted-game rounded-xl"
+                >
+                  <X size={16} />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {saveState === 'saved' && (
+            <div className="bg-success/10 border border-success/30 rounded-xl px-4 py-3 flex items-center gap-3">
+              <BookMarked size={18} className="text-success shrink-0" />
+              <div>
+                <p className="text-success font-semibold text-sm">Quiz sauvegardé !</p>
+                <Link href="/library" className="text-primary-light text-xs underline">
+                  Voir ma bibliothèque →
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Retour */}
+        <div className="space-y-3">
+          <Link href="/dashboard">
             <Button className="w-full min-button bg-surface-2 border border-game-border text-text hover:bg-surface-3 rounded-button font-semibold gap-2">
-              <Home size={18} />
-              Retour à l&apos;accueil
+              <RotateCcw size={18} />
+              Rejoindre une nouvelle partie
             </Button>
           </Link>
         </div>

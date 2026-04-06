@@ -67,6 +67,9 @@ export async function POST(req: NextRequest, { params }: Params) {
       { onConflict: 'question_id,player_id' }
     )
 
+    // Notifier les autres joueurs que ce joueur a soumis
+    await serverBroadcast(`game:${code}`, 'PLAYER_SUBMITTED', { user_id: user.id })
+
     // Vérifier si tous les joueurs ont soumis
     const { count: playerCount } = await supabase
       .from('game_players')

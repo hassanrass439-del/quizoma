@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { UploadZone } from '@/components/upload/UploadZone'
 import { ChapterSelector } from '@/components/upload/ChapterSelector'
-import { ArrowLeft, ArrowRight, ChevronRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronRight, Check, FolderOpen, Sparkles, Drama, FileQuestion } from 'lucide-react'
 import type { Chapter } from '@/types/ai.types'
 import type { GameMode } from '@/types/game.types'
 
@@ -16,7 +16,17 @@ const NB_QUESTIONS_OPTIONS = [4, 10, 15, 20]
 const TIMER_OPTIONS = [30, 45, 60]
 
 export default function CreatePage() {
+  return (
+    <Suspense>
+      <CreatePageInner />
+    </Suspense>
+  )
+}
+
+function CreatePageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const reuseCode = searchParams.get('reuse')
   const [source, setSource] = useState<'choose' | 'new'>('choose')
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [mode, setMode] = useState<GameMode>('bluff')
@@ -28,6 +38,37 @@ export default function CreatePage() {
   const [timerSeconds, setTimerSeconds] = useState(30)
   const [isCreating, setIsCreating] = useState(false)
   const [wordCount, setWordCount] = useState(0)
+  const [reuseLoading, setReuseLoading] = useState(!!reuseCode)
+
+  // Charger le texte source depuis la partie précédente
+  useEffect(() => {
+    if (!reuseCode) return
+    async function loadSource() {
+      try {
+        const res = await fetch(`/api/game/${reuseCode}/source`)
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+        setMode(data.mode as GameMode)
+        setRawText(data.text)
+        setWordCount(data.text.split(/\s+/).filter(Boolean).length)
+        if (data.chapters && data.chapters.length > 0) {
+          setChapters(data.chapters)
+          setSelectedChapters([data.chapters[0].title])
+          setSource('new')
+          setStep(3)
+        } else {
+          setSource('new')
+          setStep(4)
+        }
+      } catch {
+        toast.error('Impossible de charger le cours précédent')
+        setSource('choose')
+      } finally {
+        setReuseLoading(false)
+      }
+    }
+    loadSource()
+  }, [reuseCode])
 
   async function handleFileSelect(file: File) {
     setIsProcessing(true)
@@ -39,7 +80,7 @@ export default function CreatePage() {
       const data = await res.json()
       setRawText(data.text)
       setChapters(data.chapters)
-      setSelectedChapters(data.chapters.map((c: Chapter) => c.title))
+      setSelectedChapters(data.chapters.length > 0 ? [data.chapters[0].title] : [])
       setWordCount(data.wordCount)
       setStep(data.chapters.length > 0 ? 3 : 4)
     } catch {
@@ -68,7 +109,13 @@ export default function CreatePage() {
       const res = await fetch('/api/game/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, text: selectedText, config: { nb_questions: nbQuestions, timer_seconds: timerSeconds } }),
+        body: JSON.stringify({
+          mode,
+          text: selectedText,
+          fullText: rawText,
+          chapters: chapters.length > 0 ? chapters : undefined,
+          config: { nb_questions: nbQuestions, timer_seconds: timerSeconds },
+        }),
       })
       if (!res.ok) {
         const { error } = await res.json()
@@ -80,6 +127,17 @@ export default function CreatePage() {
       toast.error(err instanceof Error ? err.message : 'Erreur lors de la création')
       setIsCreating(false)
     }
+  }
+
+  if (reuseLoading) {
+    return (
+      <div className="min-h-full bg-[#12121f] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-[#6c3ff5] border-t-transparent rounded-full animate-spin" />
+          <p className="text-text font-bold font-headline">Chargement du cours...</p>
+        </div>
+      </div>
+    )
   }
 
   if (source === 'choose') {
@@ -101,7 +159,7 @@ export default function CreatePage() {
 
           <Link href="/library">
             <button className="w-full flex items-center gap-4 bg-surface-2 border border-[#484456]/40 hover:border-[#6c3ff5]/50 hover:bg-surface-3 rounded-[18px] p-5 text-left transition-all active:scale-[0.98]">
-              <span className="text-3xl flex-shrink-0">📂</span>
+              <FolderOpen size={28} className="text-[#cbbeff] flex-shrink-0" />
               <div className="flex-1">
                 <p className="text-text font-bold font-headline">Depuis ma bibliothèque</p>
                 <p className="text-text-muted text-sm mt-0.5">Utiliser un quiz déjà créé — instantané</p>
@@ -120,7 +178,7 @@ export default function CreatePage() {
             onClick={() => setSource('new')}
             className="w-full flex items-center gap-4 bg-surface-2 border border-[#484456]/40 hover:border-[#6c3ff5]/50 hover:bg-surface-3 rounded-[18px] p-5 text-left transition-all active:scale-[0.98]"
           >
-            <span className="text-3xl flex-shrink-0">✨</span>
+            <Sparkles size={28} className="text-[#ffb59d] flex-shrink-0" />
             <div className="flex-1">
               <p className="text-text font-bold font-headline">Nouveau quiz avec l&apos;IA</p>
               <p className="text-text-muted text-sm mt-0.5">Importer un document et générer les questions</p>
@@ -166,9 +224,9 @@ export default function CreatePage() {
               <h2 className="text-2xl font-black text-text font-headline tracking-tight">Mode de jeu</h2>
               <div className="space-y-4">
                 {([
-                  { value: 'bluff' as GameMode, title: 'Bluff sur cours', desc: 'Importe un PDF/DOCX et invente de faux mots', emoji: '🎭', badge: 'BLUFF' },
-                  { value: 'annales' as GameMode, title: 'Annales QCM', desc: 'Analyse des examens et trouve la bonne combinaison', emoji: '📝', badge: 'QCM' },
-                ] as const).map(({ value, title, desc, emoji, badge }) => (
+                  { value: 'bluff' as GameMode, title: 'Bluff sur cours', desc: 'Importe un PDF/DOCX et invente de faux mots', icon: Drama, color: '#cbbeff', badge: 'BLUFF' },
+                  { value: 'annales' as GameMode, title: 'Annales QCM', desc: 'Analyse des examens et trouve la bonne combinaison', icon: FileQuestion, color: '#ffb59d', badge: 'QCM' },
+                ] as const).map(({ value, title, desc, icon: Icon, color, badge }) => (
                   <button
                     key={value}
                     onClick={() => setMode(value)}
@@ -176,7 +234,7 @@ export default function CreatePage() {
                       mode === value ? 'border-[#6c3ff5] bg-[#6c3ff5]/10' : 'border-[#484456]/30 hover:border-[#6c3ff5]/40'
                     }`}
                   >
-                    <span className="text-3xl flex-shrink-0">{emoji}</span>
+                    <Icon size={28} style={{ color }} className="flex-shrink-0" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <p className="text-text font-bold font-headline">{title}</p>
@@ -186,7 +244,7 @@ export default function CreatePage() {
                       </div>
                       <p className="text-text-muted text-sm">{desc}</p>
                     </div>
-                    {mode === value && <div className="w-5 h-5 bg-[#6c3ff5] rounded-full flex items-center justify-center"><svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>}
+                    {mode === value && <div className="w-5 h-5 bg-[#6c3ff5] rounded-full flex items-center justify-center"><Check size={12} className="text-white" /></div>}
                   </button>
                 ))}
               </div>
@@ -207,7 +265,7 @@ export default function CreatePage() {
                 <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${
                   mode === 'bluff' ? 'bg-[#6c3ff5]/20 border-[#6c3ff5]/30' : 'bg-[#b83900]/20 border-[#b83900]/30'
                 }`}>
-                  <span className="text-sm">{mode === 'bluff' ? '🎭' : '📝'}</span>
+                  {mode === 'bluff' ? <Drama size={14} className="text-[#cbbeff]" /> : <FileQuestion size={14} className="text-[#ffb59d]" />}
                   <span className={`text-[10px] font-headline font-black tracking-widest uppercase ${mode === 'bluff' ? 'text-[#cbbeff]' : 'text-[#ffb59d]'}`}>
                     {mode === 'bluff' ? 'BLUFF MODE' : 'QCM MODE'}
                   </span>
@@ -223,9 +281,11 @@ export default function CreatePage() {
             </motion.div>
           )}
 
-          {/* Étape 3 — Chapitres */}
+          {/* Étape 3 — Axes du cours */}
           {step === 3 && chapters.length > 0 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+              <h2 className="text-2xl font-extrabold text-text font-headline tracking-tight">Sélectionne les axes</h2>
+              <p className="text-text-muted text-sm">Choisis les parties du cours sur lesquelles tu veux jouer</p>
               <ChapterSelector chapters={chapters} selectedChapters={selectedChapters} onSelectionChange={setSelectedChapters} />
               <button
                 onClick={() => setStep(4)}

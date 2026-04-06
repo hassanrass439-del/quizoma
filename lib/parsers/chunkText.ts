@@ -21,24 +21,36 @@ export function chunkText(
 }
 
 /**
- * Extrait la table des matières en détectant les titres numérotés.
+ * Extrait les axes / chapitres en détectant les titres numérotés
+ * et les termes courants dans les cours médicaux.
  */
 export function extractChapters(text: string): Chapter[] {
   const lines = text.split('\n')
   const chapters: Chapter[] = []
 
   // Patterns : "I.", "II.", "1.", "A.", "Chapitre 1", "CHAPITRE I"
-  const titleRegex =
-    /^((?:[IVX]+\.|[A-Z]\.|[0-9]+\.|Chapitre\s+[IVX0-9]+|CHAPITRE\s+[IVX0-9]+)\s+.{3,60})$/i
+  // + axes médicaux courants en début de ligne (Introduction, Définition, Épidémiologie, etc.)
+  const medicalAxes = 'Introduction|Définition|D[eé]finitions|[EÉ]pid[eé]miologie|Physiopathologie|Anatomie|Histologie|Diagnostic|Clinique|Examen\\s+[Cc]linique|Examens?\\s+[Cc]ompl[eé]mentaires|Paraclinique|Traitement|Th[eé]rapeutique|Prise\\s+en\\s+charge|[EÉ]tiologie|[EÉ]tiologies|Classification|Complications?|Pronostic|Pr[eé]vention|Conclusion|Signes?\\s+[Cc]liniques?|Signes?\\s+[Ff]onctionnels?|Bilan|Facteurs?\\s+de\\s+risque|Formes?\\s+[Cc]liniques?'
+  const titleRegex = new RegExp(
+    `^((?:[IVX]+\\.|[A-Z]\\.|[0-9]+\\.|Chapitre\\s+[IVX0-9]+|CHAPITRE\\s+[IVX0-9]+)\\s+.{3,80}|(?:${medicalAxes})(?:\\s*[:–\\-—]\\s*.{0,80})?)$`,
+    'i'
+  )
 
+  const seen = new Set<string>()
   let charIndex = 0
   for (const line of lines) {
-    if (titleRegex.test(line.trim())) {
-      chapters.push({
-        title: line.trim(),
-        startIndex: charIndex,
-        endIndex: charIndex + line.length,
-      })
+    const trimmed = line.trim()
+    if (titleRegex.test(trimmed)) {
+      // Dédupliquer par titre normalisé (minuscules, sans ponctuation)
+      const key = trimmed.toLowerCase().replace(/[^a-zà-ÿ0-9\s]/g, '').replace(/\s+/g, ' ').trim()
+      if (!seen.has(key)) {
+        seen.add(key)
+        chapters.push({
+          title: trimmed,
+          startIndex: charIndex,
+          endIndex: charIndex + line.length,
+        })
+      }
     }
     charIndex += line.length + 1 // +1 for '\n'
   }

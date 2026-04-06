@@ -1,4 +1,5 @@
 import { SYSTEM_PROMPT_MODE2 } from './prompts'
+import { geminiRetryFetch } from './geminiRetry'
 
 export interface SolvedQCM {
   vraie_combinaison: string
@@ -9,7 +10,7 @@ export interface SolvedQCM {
  * Envoie UN bloc QCM à Gemini et retourne la combinaison correcte + les explications.
  */
 export async function solveQCMQuestion(questionText: string): Promise<SolvedQCM> {
-  const res = await fetch(
+  const res = await geminiRetryFetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
       method: 'POST',

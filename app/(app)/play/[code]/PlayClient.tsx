@@ -6,7 +6,6 @@ import { toast } from 'sonner'
 import { useGameSync, type GameSyncState } from '@/hooks/useGameSync'
 import { createClient } from '@/lib/supabase/client'
 import { useAntiCheat } from '@/hooks/useAntiCheat'
-import { TimerCircle } from '@/components/game/TimerCircle'
 import { QuestionCard } from '@/components/game/QuestionCard'
 import { BluffInput } from '@/components/game/BluffInput'
 import { VoteScreen } from '@/components/game/VoteScreen'
@@ -183,7 +182,7 @@ export function PlayClient({
     <div className="flex flex-col min-h-dvh bg-[#12121f]">
       {/* Reconnection banner */}
       {gameState.connectionStatus === 'disconnected' && (
-        <div className="fixed top-0 w-full bg-warning text-black text-center py-2 text-sm z-50 font-semibold">
+        <div className="fixed top-0 left-0 right-0 bg-warning text-black text-center py-2 text-sm z-50 font-semibold">
           Reconnexion en cours…
         </div>
       )}
@@ -222,33 +221,6 @@ export function PlayClient({
           )}
         </div>
 
-        {/* Other players orbs */}
-        <div className="flex items-center gap-3 max-w-[50%] overflow-x-auto px-1">
-          {initialPlayers
-            .filter((p) => p.user_id !== currentUserId)
-            .slice(0, 3)
-            .map((p) => {
-              const profile = (Array.isArray(p.profiles) ? p.profiles[0] : p.profiles) as Profile | null
-              if (!profile) return null
-              const av = getAvatar(profile.avatar_id)
-              return (
-                <div key={p.user_id} className="flex flex-col items-center gap-0.5 flex-shrink-0">
-                  <Image
-                    src={avatarUrl(av.seed, av.bg, 32)}
-                    alt={profile.pseudo}
-                    width={32}
-                    height={32}
-                    className="w-8 h-8 rounded-full border border-[#484456] opacity-80"
-                    unoptimized
-                  />
-                  <span className="bg-[#343342] text-[9px] px-1.5 py-0.5 rounded-full font-bold text-[#cbbeff] leading-none">
-                    {playerScores[p.user_id] ?? p.score}
-                  </span>
-                </div>
-              )
-            })}
-        </div>
-
         {/* My score */}
         <div className="flex items-center gap-2 bg-[#6c3ff5]/20 px-3 py-1.5 rounded-xl">
           <span className="text-primary-tint font-black font-headline tracking-tight text-sm">{myScore}</span>
@@ -278,15 +250,6 @@ export function PlayClient({
         {/* Question phase */}
         {gameState.status === 'question' && effectiveQuestionData && (
           <>
-            {/* Timer */}
-            <div className="relative flex flex-col items-center mb-8">
-              <TimerCircle
-                durationSeconds={timerSeconds}
-                onExpire={() => !hasSubmittedBluff && submitBluff()}
-              />
-              <span className="text-text-muted text-[11px] font-bold tracking-widest mt-2">SECONDES</span>
-            </div>
-
             {/* Question card with left glow border */}
             <div className="w-full bg-surface-2 p-6 rounded-xl border-l-4 border-[#6c3ff5] shadow-[-4px_0_12px_-2px_rgba(108,63,245,0.4)] relative mb-8">
               <span className="text-[#6c3ff5] font-black text-[11px] tracking-widest mb-3 block font-headline">
@@ -354,6 +317,11 @@ export function PlayClient({
             questionIndex={currentIndex}
             totalQuestions={totalQuestions}
             currentUserId={currentUserId}
+            playerScores={playerScores}
+            players={initialPlayers.map((p) => {
+              const profile = (Array.isArray(p.profiles) ? p.profiles[0] : p.profiles) as Profile | null
+              return { user_id: p.user_id, pseudo: profile?.pseudo ?? '?', avatar_id: profile?.avatar_id ?? '' }
+            })}
           />
         )}
 
@@ -367,7 +335,43 @@ export function PlayClient({
         )}
       </div>
 
-{/* Atmospheric glows */}
+      {/* Players bar — who has submitted */}
+      {gameState.status === 'question' && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#0d0d1a]/80 backdrop-blur-md border-t border-[#484456]/30 px-4 py-3">
+          <div className="max-w-md mx-auto flex justify-center gap-4">
+            {initialPlayers.map((p) => {
+              const profile = (Array.isArray(p.profiles) ? p.profiles[0] : p.profiles) as Profile | null
+              if (!profile) return null
+              const av = getAvatar(profile.avatar_id)
+              const isMe = p.user_id === currentUserId
+              const hasSubmitted = isMe ? hasSubmittedBluff : gameState.submittedPlayers.includes(p.user_id)
+              return (
+                <div key={p.user_id} className="flex flex-col items-center gap-1">
+                  <div className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all duration-300 ${
+                    hasSubmitted ? 'border-[#45dfa4] opacity-100' : 'border-[#484456] opacity-30'
+                  }`}>
+                    <Image
+                      src={avatarUrl(av.seed, av.bg, 40)}
+                      alt={profile.pseudo}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <span className={`text-[10px] font-bold truncate max-w-[56px] text-center transition-all duration-300 ${
+                    hasSubmitted ? 'text-[#45dfa4]' : 'text-text-muted/50'
+                  }`}>
+                    {isMe ? 'Toi' : profile.pseudo}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Atmospheric glows */}
       <div className="fixed top-1/4 -right-20 w-64 h-64 bg-[#6c3ff5]/10 blur-[100px] rounded-full -z-10 pointer-events-none" />
       <div className="fixed bottom-1/4 -left-20 w-64 h-64 bg-[#b83900]/10 blur-[100px] rounded-full -z-10 pointer-events-none" />
     </div>

@@ -36,8 +36,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       .select('*', { count: 'exact', head: true })
       .eq('game_id', game.id)
 
-    if ((count ?? 0) >= 12) {
-      return NextResponse.json({ error: 'Partie complète (max 12 joueurs)' }, { status: 409 })
+    if ((count ?? 0) >= 7) {
+      return NextResponse.json({ error: 'Partie complète (max 7 joueurs)' }, { status: 409 })
     }
 
     // Upsert pour éviter les doublons

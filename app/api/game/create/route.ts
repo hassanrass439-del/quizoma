@@ -5,15 +5,26 @@ import { chunkText, cleanText } from '@/lib/parsers/chunkText'
 import { parseQCMBlocks } from '@/lib/parsers/parseQCMBlocks'
 import { generateGameCode } from '@/lib/utils/generateCode'
 import { z } from 'zod'
+import crypto from 'crypto'
 
 const schema = z.object({
   mode: z.enum(['bluff', 'annales']),
   text: z.string().min(50),
+  fullText: z.string().optional(),
+  chapters: z.array(z.object({
+    title: z.string(),
+    startIndex: z.number(),
+    endIndex: z.number(),
+  })).optional(),
   config: z.object({
     nb_questions: z.number().int().min(1).max(30),
     timer_seconds: z.number().int().min(10).max(120),
   }),
 })
+
+function textFingerprint(text: string): string {
+  return crypto.createHash('sha256').update(text).digest('hex')
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,8 +41,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Données invalides', details: parsed.error.flatten() }, { status: 400 })
     }
 
-    const { mode, text, config } = parsed.data
+    const { mode, text, fullText, chapters: inputChapters, config } = parsed.data
     const cleanedText = cleanText(text)
+    const fingerprint = textFingerprint(cleanedText)
 
     // Générer le code de partie unique
     let code = generateGameCode()
@@ -51,7 +63,13 @@ export async function POST(req: NextRequest) {
         host_id: user.id,
         mode,
         status: 'lobby',
-        config: { nb_questions: config.nb_questions, timer_seconds: config.timer_seconds },
+        config: {
+          nb_questions: config.nb_questions,
+          timer_seconds: config.timer_seconds,
+          text_fingerprint: fingerprint,
+          source_text: fullText || text,
+          ...(inputChapters && inputChapters.length > 0 ? { chapters: inputChapters } : {}),
+        },
       })
       .select()
       .single()
@@ -66,69 +84,114 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
     })
 
-    // Fast-Start : générer les premières questions immédiatement
-    console.log('[create] SERVICE_ROLE_KEY set?', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
     const serviceSupabase = createServiceClient()
 
-    if (mode === 'bluff') {
-      const chunks = chunkText(cleanedText, { size: 500, overlap: 50 })
-      const allQuestions: Array<{ question: string; vraie_reponse: string; synonymes: string[]; explication: string }> = []
+    // ── Cache : chercher un game existant avec la même empreinte et le même mode ──
+    const { data: cachedGame } = await serviceSupabase
+      .from('games')
+      .select('id')
+      .eq('mode', mode)
+      .filter('config->>text_fingerprint', 'eq', fingerprint)
+      .neq('id', game.id)
+      .limit(1)
+      .maybeSingle()
 
-      for (const chunk of chunks) {
-        if (allQuestions.length >= config.nb_questions) break
-        try {
-          const remaining = config.nb_questions - allQuestions.length
-          const result = await generateQuestions(chunk, remaining)
-          allQuestions.push(...result.questions_generees)
-        } catch (err) {
-          console.error('[create] chunk generation error:', err)
+    let cacheHit = false
+    if (cachedGame) {
+      const { data: cachedQuestions } = await serviceSupabase
+        .from('questions')
+        .select('question_text, vraie_reponse, synonymes, explication')
+        .eq('game_id', cachedGame.id)
+        .order('index')
+
+      if (cachedQuestions && cachedQuestions.length > 0) {
+        const questionsToUse = cachedQuestions.slice(0, config.nb_questions)
+        const { error: qInsertErr } = await serviceSupabase.from('questions').insert(
+          questionsToUse.map((q, i) => ({
+            game_id: game.id,
+            index: i,
+            question_text: q.question_text,
+            vraie_reponse: q.vraie_reponse,
+            synonymes: q.synonymes,
+            explication: q.explication,
+          }))
+        )
+        if (!qInsertErr) {
+          cacheHit = true
+          console.log('[create] CACHE HIT — copied', questionsToUse.length, 'questions from game', cachedGame.id)
+
+          // Ajuster nb_questions si nécessaire
+          if (questionsToUse.length !== config.nb_questions) {
+            await serviceSupabase
+              .from('games')
+              .update({ config: { ...game.config as object, nb_questions: questionsToUse.length } })
+              .eq('id', game.id)
+          }
         }
       }
+    }
 
-      const finalQuestions = allQuestions.slice(0, config.nb_questions)
-      console.log('[create] inserting', finalQuestions.length, '/', config.nb_questions, 'questions for game', game.id)
+    // ── Cache miss : générer les questions ──
+    if (!cacheHit) {
+      console.log('[create] CACHE MISS — generating questions with AI')
 
-      const { data: insertedQ, error: qInsertErr } = await serviceSupabase.from('questions').insert(
-        finalQuestions.map((q, i) => ({
-          game_id: game.id,
-          index: i,
-          question_text: q.question,
-          vraie_reponse: q.vraie_reponse,
-          synonymes: q.synonymes,
-          explication: q.explication,
-        }))
-      ).select()
-      console.log('[create] questions insert error:', qInsertErr)
-      console.log('[create] questions inserted count:', insertedQ?.length ?? 0)
-    } else {
-      // Mode Annales : découper en blocs QCM individuels
-      const blocks = parseQCMBlocks(cleanedText)
-      console.log('[create] QCM blocks found:', blocks.length)
+      if (mode === 'bluff') {
+        const chunks = chunkText(cleanedText, { size: 500, overlap: 50 })
+        const allQuestions: Array<{ question: string; vraie_reponse: string; synonymes: string[]; explication: string }> = []
 
-      // Si aucun bloc détecté, traiter tout le texte comme une seule question
-      const questionsToInsert = blocks.length > 0 ? blocks : [cleanedText]
-      const finalBlocks = questionsToInsert.slice(0, config.nb_questions)
+        for (const chunk of chunks) {
+          if (allQuestions.length >= config.nb_questions) break
+          try {
+            const remaining = config.nb_questions - allQuestions.length
+            const result = await generateQuestions(chunk, remaining)
+            allQuestions.push(...result.questions_generees)
+          } catch (err) {
+            console.error('[create] chunk generation error:', err)
+          }
+        }
 
-      const { error: qInsertErr } = await serviceSupabase.from('questions').insert(
-        finalBlocks.map((block, i) => ({
-          game_id: game.id,
-          index: i,
-          question_text: block,
-          vraie_reponse: '', // Sera résolu par l'IA au moment de la question
-          synonymes: [],
-          explication: '',
-        }))
-      )
-      if (qInsertErr) console.error('[create] questions insert error:', qInsertErr)
+        const finalQuestions = allQuestions.slice(0, config.nb_questions)
+        console.log('[create] inserting', finalQuestions.length, '/', config.nb_questions, 'questions')
 
-      // Mettre à jour nb_questions avec le nombre réel de blocs insérés
-      if (finalBlocks.length !== config.nb_questions) {
-        await serviceSupabase
-          .from('games')
-          .update({ config: { nb_questions: finalBlocks.length, timer_seconds: config.timer_seconds } })
-          .eq('id', game.id)
+        const { error: qInsertErr } = await serviceSupabase.from('questions').insert(
+          finalQuestions.map((q, i) => ({
+            game_id: game.id,
+            index: i,
+            question_text: q.question,
+            vraie_reponse: q.vraie_reponse,
+            synonymes: q.synonymes,
+            explication: q.explication,
+          }))
+        )
+        if (qInsertErr) console.error('[create] questions insert error:', qInsertErr)
+      } else {
+        // Mode Annales : découper en blocs QCM individuels
+        const blocks = parseQCMBlocks(cleanedText)
+        console.log('[create] QCM blocks found:', blocks.length)
+
+        const questionsToInsert = blocks.length > 0 ? blocks : [cleanedText]
+        const finalBlocks = questionsToInsert.slice(0, config.nb_questions)
+
+        const { error: qInsertErr } = await serviceSupabase.from('questions').insert(
+          finalBlocks.map((block, i) => ({
+            game_id: game.id,
+            index: i,
+            question_text: block,
+            vraie_reponse: '',
+            synonymes: [],
+            explication: '',
+          }))
+        )
+        if (qInsertErr) console.error('[create] questions insert error:', qInsertErr)
+
+        if (finalBlocks.length !== config.nb_questions) {
+          await serviceSupabase
+            .from('games')
+            .update({ config: { ...game.config as object, nb_questions: finalBlocks.length } })
+            .eq('id', game.id)
+        }
+        console.log('[create] inserted', finalBlocks.length, 'QCM questions (unsolved)')
       }
-      console.log('[create] inserted', finalBlocks.length, 'QCM questions (unsolved)')
     }
 
     return NextResponse.json({ code })

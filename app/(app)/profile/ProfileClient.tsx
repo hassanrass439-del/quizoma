@@ -3,12 +3,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { MobileHeader } from '@/components/layout/MobileHeader'
 import { Button } from '@/components/ui/button'
-import { LogOut, Trophy, Gamepad2, Star, Pencil, Check, X } from 'lucide-react'
+import { LogOut, Pencil, Check, X, ChevronRight, History, Settings } from 'lucide-react'
 import { getAvatar, avatarUrl, AVATARS_F, AVATARS_M, ALL_AVATARS } from '@/lib/avatars'
 import type { AvatarDef } from '@/lib/avatars'
 import Image from 'next/image'
+import Link from 'next/link'
 
 interface Props {
   profile: {
@@ -17,6 +17,7 @@ interface Props {
     avatar_id: string
     total_games: number
     total_score: number
+    created_at?: string
   }
   email: string
 }
@@ -33,6 +34,11 @@ export function ProfileClient({ profile, email }: Props) {
   const currentAvatar = getAvatar(selectedAvatar)
   const currentUrl = avatarUrl(currentAvatar.seed, currentAvatar.bg, 192)
   const displayedAvatars = activeTab === 'f' ? AVATARS_F : AVATARS_M
+  const avgScore = profile.total_games > 0 ? Math.round(profile.total_score / profile.total_games) : 0
+
+  const memberSince = profile.created_at
+    ? new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+    : ''
 
   async function saveAvatar() {
     if (selectedAvatar === profile.avatar_id) {
@@ -63,53 +69,71 @@ export function ProfileClient({ profile, email }: Props) {
   }
 
   return (
-    <div className="flex flex-col min-h-full">
-      <MobileHeader title="Mon profil" backHref="/dashboard" />
+    <div className="min-h-full bg-[#0d0d1a] pb-32">
 
-      <div className="flex-1 px-4 py-5 space-y-5">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-[#0d0d1a]/60 backdrop-blur-xl flex justify-between items-center w-full px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-[#292937] overflow-hidden border border-[#6c3ff5]/30">
+            <Image
+              src={avatarUrl(currentAvatar.seed, currentAvatar.bg, 40)}
+              alt={currentAvatar.name}
+              width={40}
+              height={40}
+              className="w-full h-full object-cover"
+              unoptimized
+            />
+          </div>
+          <h1 className="font-headline font-extrabold text-xl tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#6c3ff5] to-[#cbbeff]">
+            Profil
+          </h1>
+        </div>
+      </header>
 
-        {/* Carte profil */}
-        <div className="bg-surface-2 border border-game-border rounded-card p-6 flex flex-col items-center gap-3">
-          {/* Avatar */}
+      <main className="px-6 mt-6 space-y-10 max-w-2xl mx-auto">
+
+        {/* Profile Header */}
+        <section className="flex flex-col items-center text-center space-y-4">
           <div className="relative">
-            <div className="w-24 h-24 rounded-full overflow-hidden shadow-lg">
-              <Image
-                src={currentUrl}
-                alt={currentAvatar.name}
-                width={96}
-                height={96}
-                className="w-full h-full object-cover"
-                unoptimized
-              />
+            <div className="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-[#6c3ff5] to-[#cbbeff] shadow-[0_0_20px_rgba(108,63,245,0.4)]">
+              <div className="w-full h-full rounded-full bg-[#0d0d1a] overflow-hidden">
+                <Image
+                  src={currentUrl}
+                  alt={profile.pseudo}
+                  width={96}
+                  height={96}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
+              </div>
             </div>
             {!isEditingAvatar && (
               <button
                 onClick={() => setIsEditingAvatar(true)}
-                className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-md hover:bg-primary-dark transition-colors"
+                className="absolute -bottom-1 -right-1 w-8 h-8 bg-[#6c3ff5] rounded-full flex items-center justify-center shadow-md hover:brightness-110 transition-all"
               >
                 <Pencil size={14} className="text-white" />
               </button>
             )}
           </div>
-
-          <div className="text-center">
-            <h2 className="text-2xl font-black text-text">{profile.pseudo}</h2>
-            <p className="text-muted-game text-sm mt-0.5">{currentAvatar.name}</p>
-            <p className="text-muted-game text-xs mt-0.5">{email}</p>
+          <div>
+            <h2 className="font-headline font-extrabold text-3xl tracking-tight text-[#e3e0f4]">{profile.pseudo}</h2>
+            <p className="text-[#cac3d9] font-medium text-sm mt-1">
+              {memberSince ? `Membre depuis ${memberSince}` : email}
+            </p>
           </div>
-        </div>
+        </section>
 
-        {/* Picker d'avatar */}
+        {/* Avatar Picker */}
         {isEditingAvatar && (
-          <div className="bg-surface-2 border border-primary/30 rounded-card p-4 space-y-4">
+          <section className="bg-[#1a1a28] border border-[#6c3ff5]/30 rounded-xl p-4 space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-text font-bold text-sm">Choisir un avatar</p>
-              <button onClick={cancelEdit} className="text-muted-game hover:text-text">
+              <p className="text-[#e3e0f4] font-bold text-sm">Choisir un avatar</p>
+              <button onClick={cancelEdit} className="text-[#cac3d9] hover:text-[#e3e0f4]">
                 <X size={18} />
               </button>
             </div>
 
-            {/* Tabs F/M */}
             <div className="flex gap-2">
               {(['f', 'm'] as const).map((tab) => (
                 <button
@@ -117,8 +141,8 @@ export function ProfileClient({ profile, email }: Props) {
                   onClick={() => setActiveTab(tab)}
                   className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all border ${
                     activeTab === tab
-                      ? 'bg-primary border-primary text-white'
-                      : 'bg-surface-3 border-game-border text-muted-game hover:border-primary/50'
+                      ? 'bg-[#6c3ff5] border-[#6c3ff5] text-white'
+                      : 'bg-[#1e1e2c] border-[#484456] text-[#cac3d9]'
                   }`}
                 >
                   {tab === 'f' ? '👩 Féminin' : '👨 Masculin'}
@@ -126,7 +150,6 @@ export function ProfileClient({ profile, email }: Props) {
               ))}
             </div>
 
-            {/* Grille */}
             <div className="grid grid-cols-4 gap-2">
               {displayedAvatars.map((av: AvatarDef) => (
                 <button
@@ -134,8 +157,8 @@ export function ProfileClient({ profile, email }: Props) {
                   onClick={() => setSelectedAvatar(av.id)}
                   className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all ${
                     selectedAvatar === av.id
-                      ? 'border-primary scale-105'
-                      : 'border-transparent hover:border-game-border'
+                      ? 'border-[#6c3ff5] scale-105 shadow-lg shadow-[#6c3ff5]/20'
+                      : 'border-transparent'
                   }`}
                 >
                   <div className="w-14 h-14 rounded-full overflow-hidden">
@@ -148,7 +171,7 @@ export function ProfileClient({ profile, email }: Props) {
                       unoptimized
                     />
                   </div>
-                  <span className="text-[10px] text-muted-game text-center leading-tight line-clamp-1">
+                  <span className="text-[10px] text-[#cac3d9] text-center leading-tight line-clamp-1">
                     {av.name}
                   </span>
                 </button>
@@ -158,49 +181,67 @@ export function ProfileClient({ profile, email }: Props) {
             <Button
               onClick={saveAvatar}
               disabled={isSaving}
-              className="w-full bg-primary hover:bg-primary-dark font-bold rounded-xl gap-2"
+              className="w-full h-12 bg-[#6c3ff5] hover:brightness-110 font-bold rounded-xl gap-2 text-white"
             >
               <Check size={16} />
-              {isSaving ? 'Sauvegarde…' : 'Confirmer'}
+              {isSaving ? 'Sauvegarde...' : 'Confirmer'}
             </Button>
-          </div>
+          </section>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Parties jouées', value: profile.total_games, icon: Gamepad2, color: 'text-primary-light' },
-            { label: 'Score total', value: profile.total_score, icon: Trophy, color: 'text-warning' },
-            {
-              label: 'Moy./partie',
-              value: profile.total_games > 0 ? Math.round(profile.total_score / profile.total_games) : 0,
-              icon: Star,
-              color: 'text-success',
-            },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-surface-2 border border-game-border rounded-xl p-4 text-center">
-              <Icon size={20} className={`${color} mx-auto mb-2`} />
-              <p className="text-text font-black text-2xl">{value}</p>
-              <p className="text-muted-game text-[10px] font-semibold uppercase tracking-wide mt-1 leading-tight">
-                {label}
-              </p>
-            </div>
-          ))}
-        </div>
+        {/* Stats Overview */}
+        <section className="grid grid-cols-3 gap-4">
+          <div className="bg-[#1e1e2c] rounded-xl p-4 flex flex-col items-center justify-center space-y-1 transition-transform hover:scale-[1.02]">
+            <span className="text-[#cbbeff] font-black text-2xl font-headline">{profile.total_games}</span>
+            <span className="text-[#cac3d9] text-[10px] uppercase font-bold tracking-widest">Parties</span>
+          </div>
+          <div className="bg-[#1e1e2c] rounded-xl p-4 flex flex-col items-center justify-center space-y-1 transition-transform hover:scale-[1.02]">
+            <span className="text-[#cbbeff] font-black text-2xl font-headline">{profile.total_score}</span>
+            <span className="text-[#cac3d9] text-[10px] uppercase font-bold tracking-widest">Points</span>
+          </div>
+          <div className="bg-[#1e1e2c] rounded-xl p-4 flex flex-col items-center justify-center space-y-1 transition-transform hover:scale-[1.02]">
+            <span className="text-[#cbbeff] font-black text-2xl font-headline">{avgScore}</span>
+            <span className="text-[#cac3d9] text-[10px] uppercase font-bold tracking-widest">Moyenne</span>
+          </div>
+        </section>
 
-        {/* Déconnexion */}
-        <form action="/api/auth/signout" method="POST">
-          <Button
-            type="submit"
-            variant="outline"
-            className="w-full min-button border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 font-semibold rounded-button gap-2"
-          >
-            <LogOut size={18} />
-            Se déconnecter
-          </Button>
-        </form>
+        {/* Account Menu */}
+        <section className="space-y-2">
+          <div className="bg-[#1e1e2c] rounded-xl overflow-hidden">
+            <button
+              onClick={() => setIsEditingAvatar(true)}
+              className="w-full flex items-center justify-between px-6 py-4 hover:bg-[#383847]/20 transition-colors group"
+            >
+              <div className="flex items-center gap-4">
+                <Pencil size={20} className="text-[#cbbeff]" />
+                <span className="font-bold text-[#e3e0f4]">Modifier le profil</span>
+              </div>
+              <ChevronRight size={18} className="text-[#cac3d9] opacity-40 group-hover:opacity-100 transition-opacity" />
+            </button>
+            <div className="mx-6 h-[1px] bg-[#484456]/10" />
+            <Link href="/history" className="w-full flex items-center justify-between px-6 py-4 hover:bg-[#383847]/20 transition-colors group">
+              <div className="flex items-center gap-4">
+                <History size={20} className="text-[#cbbeff]" />
+                <span className="font-bold text-[#e3e0f4]">Historique des parties</span>
+              </div>
+              <ChevronRight size={18} className="text-[#cac3d9] opacity-40 group-hover:opacity-100 transition-opacity" />
+            </Link>
+          </div>
 
-      </div>
+          {/* Déconnexion */}
+          <div className="bg-[#1e1e2c] rounded-xl overflow-hidden mt-4">
+            <form action="/api/auth/signout" method="POST">
+              <button
+                type="submit"
+                className="w-full flex items-center gap-4 px-6 py-4 hover:bg-[#93000a]/20 transition-colors text-[#ffb4ab] group"
+              >
+                <LogOut size={20} />
+                <span className="font-bold">Se déconnecter</span>
+              </button>
+            </form>
+          </div>
+        </section>
+      </main>
     </div>
   )
 }

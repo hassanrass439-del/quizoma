@@ -45,6 +45,8 @@ export default async function ResultsPage({ params }: Props) {
       gameId={game.id}
       ranking={ranking}
       questions={(questions ?? []) as Parameters<typeof ResultsClient>[0]['questions']}
+      isHost={game.host_id === user.id}
+      hasSource={!!(game.config as { source_text?: string })?.source_text}
     />
   )
 }

@@ -1,4 +1,5 @@
 import { SYSTEM_PROMPT_MODE1 } from './prompts'
+import { geminiRetryFetch } from './geminiRetry'
 import type { GeneratedQuestionsResponse } from '@/types/ai.types'
 
 export async function generateQuestions(chunk: string, count = 3): Promise<GeneratedQuestionsResponse> {
@@ -9,10 +10,7 @@ export async function generateQuestions(chunk: string, count = 3): Promise<Gener
     generationConfig: { responseMimeType: 'application/json', temperature: 0.7 },
   }
 
-  console.log('[Gemini] Sending request to gemini-2.5-flash-lite...')
-  console.log('[Gemini] Payload keys:', Object.keys(payload))
-
-  const res = await fetch(
+  const res = await geminiRetryFetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
       method: 'POST',
@@ -21,11 +19,8 @@ export async function generateQuestions(chunk: string, count = 3): Promise<Gener
     }
   )
 
-  console.log('[Gemini] Response status:', res.status, res.statusText)
-
   if (!res.ok) {
     const err = await res.text()
-    console.error('[Gemini] Error body:', err)
     throw new Error(`Gemini API error ${res.status}: ${err.slice(0, 500)}`)
   }
 

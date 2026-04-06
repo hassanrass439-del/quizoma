@@ -1,8 +1,6 @@
 'use client'
 
-import { useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Button } from '@/components/ui/button'
 import type { Chapter } from '@/types/ai.types'
 
 interface Props {
@@ -12,33 +10,19 @@ interface Props {
 }
 
 export function ChapterSelector({ chapters, selectedChapters, onSelectionChange }: Props) {
-  function toggleAll() {
-    if (selectedChapters.length === chapters.length) {
-      onSelectionChange([])
-    } else {
-      onSelectionChange(chapters.map((c) => c.title))
-    }
-  }
-
   function toggleChapter(title: string) {
     if (selectedChapters.includes(title)) {
       onSelectionChange(selectedChapters.filter((t) => t !== title))
     } else {
-      onSelectionChange([...selectedChapters, title])
+      // Beta gratuit : 1 axe max
+      onSelectionChange([title])
     }
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-text font-bold text-sm">Chapitres détectés</h3>
-        <Button
-          variant="ghost"
-          onClick={toggleAll}
-          className="text-primary-light text-sm font-semibold h-auto py-1 px-2 hover:bg-primary/10"
-        >
-          {selectedChapters.length === chapters.length ? 'Tout désélectionner' : 'Tout sélectionner'}
-        </Button>
+        <h3 className="text-text font-bold text-sm">Axes détectés dans ton cours</h3>
       </div>
 
       <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -60,7 +44,7 @@ export function ChapterSelector({ chapters, selectedChapters, onSelectionChange 
       </div>
 
       <p className="text-muted-game text-xs">
-        {selectedChapters.length} chapitre{selectedChapters.length > 1 ? 's' : ''} sélectionné{selectedChapters.length > 1 ? 's' : ''}
+        {selectedChapters.length} axe sélectionné — 1 axe max en version gratuite
       </p>
     </div>
   )

@@ -13,9 +13,11 @@ interface Props {
   questionIndex: number
   totalQuestions: number
   currentUserId: string
+  playerScores: Record<string, number>
+  players: Array<{ user_id: string; pseudo: string; avatar_id: string }>
 }
 
-export function RevealScreen({ payload, isHost, onNext, questionIndex, totalQuestions, currentUserId }: Props) {
+export function RevealScreen({ payload, isHost, onNext, questionIndex, totalQuestions, currentUserId, playerScores, players }: Props) {
   const [explanationOpen, setExplanationOpen] = useState(false)
   const isLastQuestion = questionIndex >= totalQuestions - 1
   const myGain = payload.scores?.[currentUserId] ?? 0
@@ -97,14 +99,50 @@ export function RevealScreen({ payload, isHost, onNext, questionIndex, totalQues
                 exit={{ height: 0 }}
                 className="overflow-hidden"
               >
-                <p className="px-4 pb-4 text-muted-game text-sm leading-relaxed">
-                  {payload.explanation}
-                </p>
+                <div className="px-4 pb-4 space-y-2">
+                  {payload.explanation.split('\n').filter(Boolean).map((line, i) => (
+                    <p key={i} className="text-text-muted text-sm leading-relaxed text-left">
+                      {line}
+                    </p>
+                  ))}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       )}
+
+      {/* Classement */}
+      <div className="space-y-2">
+        <h3 className="text-text font-bold text-sm uppercase tracking-wider">Classement</h3>
+        {[...players]
+          .sort((a, b) => (playerScores[b.user_id] ?? 0) - (playerScores[a.user_id] ?? 0))
+          .map((p, i) => {
+            const score = playerScores[p.user_id] ?? 0
+            const gain = payload.scores?.[p.user_id] ?? 0
+            const isMe = p.user_id === currentUserId
+            return (
+              <motion.div
+                key={p.user_id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.5 + i * 0.08 }}
+                className={`flex items-center gap-3 rounded-xl px-4 py-2.5 ${
+                  isMe ? 'bg-[#6c3ff5]/15 border border-[#6c3ff5]/30' : 'bg-surface-2 border border-game-border'
+                }`}
+              >
+                <span className="text-text-muted font-bold text-sm w-5">{i + 1}.</span>
+                <span className="flex-1 text-text font-bold text-sm truncate">
+                  {p.pseudo}{isMe ? ' (toi)' : ''}
+                </span>
+                {gain > 0 && (
+                  <span className="text-[#45dfa4] text-xs font-bold">+{gain}</span>
+                )}
+                <span className="text-[#cbbeff] font-black text-sm">{score}</span>
+              </motion.div>
+            )
+          })}
+      </div>
 
       {isHost && (
         <Button

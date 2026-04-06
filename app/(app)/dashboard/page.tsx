@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { JoinGameForm } from '@/components/dashboard/JoinGameForm'
 import { getAvatar, avatarUrl } from '@/lib/avatars'
 import Image from 'next/image'
-import { ChevronRight, BookOpen } from 'lucide-react'
+import { ChevronRight, BookOpen, Gamepad2, Trophy, TrendingUp, Bell, Plus } from 'lucide-react'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -53,29 +53,28 @@ export default async function DashboardPage() {
           <div className="flex flex-col">
             <span className="text-[13px] text-text-muted leading-none">Bonsoir,</span>
             <span className="text-[20px] font-black text-text font-headline tracking-tight">
-              {profile.pseudo} 👋
+              {profile.pseudo}
             </span>
           </div>
         </div>
         <Link href="/profile" className="w-11 h-11 flex items-center justify-center bg-surface-2 rounded-xl text-text hover:bg-surface-3 transition-colors">
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
+          <Bell size={20} />
         </Link>
       </header>
 
       <main className="px-6 space-y-8">
 
         {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="flex gap-3">
           {[
-            { value: profile.total_games, label: 'Parties' },
-            { value: profile.total_score, label: 'Points' },
-            { value: avgScore, label: 'Moyenne' },
-          ].map(({ value, label }) => (
-            <div key={label} className="bg-[#0d0d1a] border-l-4 border-[#6c3ff5] rounded-[14px] p-4 flex flex-col justify-center shadow-sm">
-              <span className="text-2xl font-black text-primary-tint font-headline">{value}</span>
-              <span className="text-[11px] uppercase tracking-wider text-text-muted font-semibold">{label}</span>
+            { value: profile.total_games, label: 'Parties', icon: Gamepad2, color: '#6c3ff5' },
+            { value: profile.total_score, label: 'Points', icon: Trophy, color: '#45dfa4' },
+            { value: avgScore, label: 'Moyenne', icon: TrendingUp, color: '#ffb59d' },
+          ].map(({ value, label, icon: Icon, color }) => (
+            <div key={label} className="flex-1 bg-gradient-to-b from-[#1e1e2c] to-[#16162a] border border-[#484456]/30 rounded-xl px-2 py-3 flex flex-col items-center gap-1">
+              <Icon size={16} style={{ color }} />
+              <span className="text-xl font-black font-headline leading-none text-[#e3e0f4]">{value}</span>
+              <span className="text-[9px] uppercase tracking-[0.12em] text-[#938ea2] font-bold">{label}</span>
             </div>
           ))}
         </div>
@@ -94,7 +93,7 @@ export default async function DashboardPage() {
               <p className="text-[#e9e1ff]/70 text-sm mt-1">Importe tes notes, l&apos;IA fait le reste</p>
             </div>
             <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-              <svg className="w-8 h-8 text-[#e9e1ff]" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              <Plus size={32} className="text-[#e9e1ff]" />
             </div>
           </section>
         </Link>
@@ -112,7 +111,7 @@ export default async function DashboardPage() {
         <Link href="/library">
           <section className="group h-[72px] rounded-[18px] bg-surface-2 border-[1.5px] border-[#484456]/40 px-5 flex items-center justify-between hover:bg-surface-3 hover:border-[#6c3ff5]/40 transition-all cursor-pointer">
             <div className="flex items-center gap-4">
-              <span className="text-2xl">📚</span>
+              <BookOpen size={24} className="text-[#cbbeff]" />
               <span className="font-bold text-lg text-text font-headline">Ma bibliothèque</span>
             </div>
             <ChevronRight size={18} className="text-text-muted" />

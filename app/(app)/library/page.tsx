@@ -16,7 +16,7 @@ export default async function LibraryPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <MobileHeader title="Ma Bibliothèque 📚" backHref="/dashboard" />
+      <MobileHeader title="Ma Bibliothèque" backHref="/dashboard" />
       <LibraryClient initialQuizzes={quizzes ?? []} />
     </div>
   )

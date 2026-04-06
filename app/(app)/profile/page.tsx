@@ -24,6 +24,7 @@ export default async function ProfilePage() {
         avatar_id: profile.avatar_id,
         total_games: profile.total_games,
         total_score: profile.total_score,
+        created_at: profile.created_at,
       }}
       email={user.email ?? ''}
     />
