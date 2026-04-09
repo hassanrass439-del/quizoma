@@ -8,10 +8,11 @@ interface Props {
   onFileSelect: (file: File) => void
   onTextPaste: (text: string) => void
   isProcessing: boolean
+  processingStep?: string
   wordCount: number
 }
 
-export function UploadZone({ onFileSelect, onTextPaste, isProcessing, wordCount }: Props) {
+export function UploadZone({ onFileSelect, onTextPaste, isProcessing, processingStep, wordCount }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showTextArea, setShowTextArea] = useState(false)
   const [pastedText, setPastedText] = useState('')
@@ -38,7 +39,7 @@ export function UploadZone({ onFileSelect, onTextPaste, isProcessing, wordCount 
       <div className="flex flex-col items-center justify-center gap-3 bg-surface-2 border border-[#484456]/30 rounded-[18px] p-8">
         <Loader2 size={32} className="text-[#6c3ff5] animate-spin" />
         <p className="text-text font-semibold font-headline">Extraction en cours…</p>
-        <p className="text-text-muted text-sm text-center">Analyse du document et détection des chapitres</p>
+        <p className="text-text-muted text-sm text-center">{processingStep || 'Analyse du document...'}</p>
       </div>
     )
   }

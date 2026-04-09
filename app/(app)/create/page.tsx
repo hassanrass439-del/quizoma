@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -69,28 +69,118 @@ function CreatePageInner() {
     loadSource()
   }, [reuseCode])
 
+  const [processingStep, setProcessingStep] = useState('')
+  const fileRef = useRef<File | null>(null)
+
   async function handleFileSelect(file: File) {
     setIsProcessing(true)
+    fileRef.current = file
     try {
+      // Étape 1 : extraction texte (rapide, pas d'IA)
+      setProcessingStep('Extraction du texte...')
       const formData = new FormData()
       formData.append('file', file)
       formData.append('mode', mode)
       const res = await fetch('/api/ai/parse-document', { method: 'POST', body: formData })
       if (!res.ok) throw new Error(await res.text())
       const data = await res.json()
-      setRawText(data.text)
-      setChapters(data.chapters)
-      setSelectedChapters(data.chapters.length > 0 ? [data.chapters[0].title] : [])
-      setWordCount(data.wordCount)
-      if (data.wordCount < 5) {
-        toast.error('Impossible d\'extraire le texte du document. Essaie de coller le texte manuellement.')
+
+      let text = data.text as string
+      let wc = data.wordCount as number
+
+      // Étape 2 : OCR si nécessaire (appel IA dédié, retry côté client)
+      if (data.needsOCR) {
+        setProcessingStep('Scan détecté, lecture par IA...')
+        const ocrForm = new FormData()
+        ocrForm.append('file', file)
+
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const ocrRes = await fetch('/api/ai/ocr', { method: 'POST', body: ocrForm })
+            if (ocrRes.ok) {
+              const ocrData = await ocrRes.json()
+              text = ocrData.text
+              wc = text.split(/\s+/).filter(Boolean).length
+              break
+            }
+            // 503 → attendre et réessayer
+            if (ocrRes.status === 500 && attempt < 2) {
+              setProcessingStep(`IA surchargée, nouvel essai (${attempt + 2}/3)...`)
+              await new Promise((r) => setTimeout(r, 2000))
+              continue
+            }
+          } catch {
+            if (attempt < 2) {
+              await new Promise((r) => setTimeout(r, 2000))
+              continue
+            }
+          }
+        }
+      }
+
+      if (wc < 5) {
+        toast.error('Impossible d\'extraire le texte. Essaie de coller le texte manuellement.')
         return
       }
-      setStep(data.chapters.length > 0 ? 3 : 4)
+
+      setRawText(text)
+      setWordCount(wc)
+
+      // Étape 3 : extraction axes si mode bluff (appel IA dédié)
+      if (data.needsAxes || (data.needsOCR && mode === 'bluff')) {
+        setProcessingStep('Détection des axes du cours...')
+        try {
+          const axesRes = await fetch('/api/ai/axes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text }),
+          })
+          if (axesRes.ok) {
+            const axesData = await axesRes.json()
+            setChapters(axesData.chapters)
+            setSelectedChapters(axesData.chapters.length > 0 ? [axesData.chapters[0].title] : [])
+            setStep(axesData.chapters.length > 0 ? 3 : 4)
+            return
+          }
+        } catch { /* fallback: pas d'axes */ }
+      }
+
+      // Mode QCM ou pas d'axes : utiliser les chapters du parse initial
+      if (data.chapters && data.chapters.length > 0 && !data.needsOCR) {
+        setChapters(data.chapters)
+        setSelectedChapters([data.chapters[0].title])
+        setStep(3)
+      } else {
+        // Mode QCM après OCR : re-détecter les thèmes dans le texte OCR
+        if (mode === 'annales') {
+          const themeRegex = /^(\d+)\.\s+([A-ZÀ-ÿ][A-ZÀ-ÿ\s\-'']+)$/gm
+          let match
+          const themes: Array<{ title: string; startIndex: number; endIndex: number }> = []
+          while ((match = themeRegex.exec(text)) !== null) {
+            const title = `${match[1]}. ${match[2].trim()}`
+            if (!themes.some((t) => t.title === title)) {
+              themes.push({ title, startIndex: match.index, endIndex: text.length })
+            }
+          }
+          for (let i = 0; i < themes.length - 1; i++) {
+            themes[i].endIndex = themes[i + 1].startIndex
+          }
+          if (themes.length > 0) {
+            setChapters(themes)
+            setSelectedChapters([themes[0].title])
+            setStep(3)
+            return
+          }
+        }
+        setChapters([])
+        setSelectedChapters([])
+        setStep(4)
+      }
     } catch {
       toast.error('Erreur lors de l\'extraction du document')
     } finally {
       setIsProcessing(false)
+      setProcessingStep('')
     }
   }
 
@@ -280,6 +370,7 @@ function CreatePageInner() {
                 onFileSelect={handleFileSelect}
                 onTextPaste={handleTextPaste}
                 isProcessing={isProcessing}
+                processingStep={processingStep}
                 wordCount={wordCount}
               />
             </motion.div>

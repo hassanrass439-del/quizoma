@@ -4,7 +4,7 @@
 export async function geminiRetryFetch(
   url: string,
   init: RequestInit,
-  maxRetries = 1
+  maxRetries = 0
 ): Promise<Response> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const res = await fetch(url, init)
