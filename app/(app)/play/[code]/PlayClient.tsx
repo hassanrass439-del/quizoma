@@ -68,23 +68,46 @@ export function PlayClient({
   const currentIndex = gameState.questionIndex
   const myScore = playerScores[currentUserId] ?? 0
 
-  // Fallback: si status=question mais questionData absent (broadcast manqué), fetch depuis la DB
-  const [fallbackQuestion, setFallbackQuestion] = useState<unknown>(null)
-  useEffect(() => {
-    if (gameState.status !== 'question' || gameState.questionData || fallbackQuestion) return
-    const supabase = createClient()
-    supabase
-      .from('questions')
-      .select('*')
-      .eq('game_id', gameId)
-      .eq('index', currentIndex)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setFallbackQuestion(data)
-      })
-  }, [gameState.status, gameState.questionData, fallbackQuestion, gameId, currentIndex])
+  // Rejoin: si le joueur revient et qu'il manque des données (broadcast manqué)
+  const [rejoinData, setRejoinData] = useState<{
+    questionData?: GameSyncState['questionData']
+    votePayload?: GameSyncState['votePayload']
+    revealPayload?: GameSyncState['revealPayload']
+  }>({})
+  const [rejoinDone, setRejoinDone] = useState(false)
 
-  const effectiveQuestionData = gameState.questionData ?? (fallbackQuestion as typeof gameState.questionData)
+  useEffect(() => {
+    if (rejoinDone) return
+    const needsRejoin =
+      (gameState.status === 'question' && !gameState.questionData) ||
+      (gameState.status === 'voting' && !gameState.votePayload) ||
+      (gameState.status === 'reveal' && !gameState.revealPayload)
+    if (!needsRejoin) return
+
+    setRejoinDone(true)
+    fetch(`/api/game/${code}/rejoin`)
+      .then((res) => res.json())
+      .then((data) => {
+        setRejoinData({
+          questionData: data.questionData ?? undefined,
+          votePayload: data.votePayload ?? undefined,
+          revealPayload: data.revealPayload ?? undefined,
+        })
+        if (data.hasSubmittedBluff) setHasSubmittedBluff(true)
+        if (data.hasVoted) setHasVoted(true)
+      })
+      .catch(() => {})
+  }, [gameState.status, gameState.questionData, gameState.votePayload, gameState.revealPayload, rejoinDone, code])
+
+  // Reset rejoin quand la question change
+  useEffect(() => {
+    setRejoinDone(false)
+    setRejoinData({})
+  }, [currentIndex])
+
+  const effectiveQuestionData = gameState.questionData ?? rejoinData.questionData ?? null
+  const effectiveVotePayload = gameState.votePayload ?? rejoinData.votePayload ?? null
+  const effectiveRevealPayload = gameState.revealPayload ?? rejoinData.revealPayload ?? null
 
   const antiCheatData = effectiveQuestionData
     ? { vraie_reponse: effectiveQuestionData.vraie_reponse, synonymes: effectiveQuestionData.synonymes }
@@ -93,16 +116,17 @@ export function PlayClient({
   const [isBlocked, setIsBlocked] = useState(false)
 
   useEffect(() => {
-    if (gameState.revealPayload?.scores) {
+    const rev = effectiveRevealPayload
+    if (rev?.scores) {
       setPlayerScores((prev) => {
         const updated = { ...prev }
-        for (const [userId, delta] of Object.entries(gameState.revealPayload!.scores)) {
+        for (const [userId, delta] of Object.entries(rev.scores)) {
           updated[userId] = (updated[userId] ?? 0) + delta
         }
         return updated
       })
     }
-  }, [gameState.revealPayload])
+  }, [effectiveRevealPayload])
 
   const prevIndexRef = useRef(currentIndex)
   useEffect(() => {
@@ -261,11 +285,13 @@ export function PlayClient({
 
       <div className="flex-1 px-6 pt-4 pb-32 max-w-md mx-auto w-full flex flex-col items-center">
 
-        {/* Loading question */}
-        {gameState.status === 'question' && !effectiveQuestionData && (
+        {/* Loading — rejoin en cours ou données manquantes */}
+        {((gameState.status === 'question' && !effectiveQuestionData) ||
+          (gameState.status === 'voting' && !effectiveVotePayload) ||
+          (gameState.status === 'reveal' && !effectiveRevealPayload)) && (
           <div className="flex flex-col items-center justify-center flex-1 gap-4 pt-20 text-center">
             <div className="w-10 h-10 border-2 border-[#6c3ff5] border-t-transparent rounded-full animate-spin" />
-            <p className="text-text font-bold font-headline">Chargement de la question…</p>
+            <p className="text-text font-bold font-headline">Reconnexion en cours…</p>
           </div>
         )}
 
@@ -320,10 +346,10 @@ export function PlayClient({
         )}
 
         {/* Vote phase */}
-        {gameState.status === 'voting' && gameState.votePayload && (
+        {gameState.status === 'voting' && effectiveVotePayload && (
           <VoteScreen
-            payload={gameState.votePayload}
-            questionText={gameState.questionData?.question_text}
+            payload={effectiveVotePayload}
+            questionText={effectiveQuestionData?.question_text}
             onVote={submitVote}
             hasVoted={hasVoted}
             currentUserId={currentUserId}
@@ -334,9 +360,9 @@ export function PlayClient({
         )}
 
         {/* Reveal phase */}
-        {gameState.status === 'reveal' && gameState.revealPayload && (
+        {gameState.status === 'reveal' && effectiveRevealPayload && (
           <RevealScreen
-            payload={gameState.revealPayload}
+            payload={effectiveRevealPayload}
             isHost={isHost}
             onNext={nextQuestion}
             questionIndex={currentIndex}

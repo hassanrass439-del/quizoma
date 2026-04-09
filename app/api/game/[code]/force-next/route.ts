@@ -39,6 +39,37 @@ export async function POST(req: NextRequest, { params }: Params) {
 
       if (!currentQuestion) return NextResponse.json({ error: 'Question introuvable' }, { status: 404 })
 
+      // Insérer un bluff par défaut pour les joueurs qui n'ont pas répondu
+      const { data: allPlayers } = await serviceSupabase
+        .from('game_players')
+        .select('user_id')
+        .eq('game_id', game.id)
+
+      const { data: existingBluffs } = await serviceSupabase
+        .from('player_bluffs')
+        .select('player_id')
+        .eq('question_id', currentQuestion.id)
+
+      const submittedIds = new Set((existingBluffs ?? []).map((b: { player_id: string }) => b.player_id))
+      const missingPlayers = (allPlayers ?? []).filter((p: { user_id: string }) => !submittedIds.has(p.user_id))
+
+      // Générer des bluffs automatiques pour les absents
+      const autoBluffs = [
+        'Je ne sais pas', 'Aucune idée', 'Réponse au hasard',
+        'Peut-être ceci', 'Bonne question', 'Difficile à dire', 'Pas sûr du tout',
+      ]
+      for (let i = 0; i < missingPlayers.length; i++) {
+        await serviceSupabase.from('player_bluffs').upsert(
+          {
+            question_id: currentQuestion.id,
+            player_id: missingPlayers[i].user_id,
+            bluff_text: autoBluffs[i % autoBluffs.length],
+          },
+          { onConflict: 'question_id,player_id' }
+        )
+      }
+
+      // Récupérer TOUS les bluffs (soumis + auto)
       const { data: bluffs } = await serviceSupabase
         .from('player_bluffs')
         .select('id, bluff_text, player_id')

@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { parsePDF } from '@/lib/parsers/pdfParser'
 import { parseDOCX } from '@/lib/parsers/docxParser'
-import { cleanText, extractChapters } from '@/lib/parsers/chunkText'
+import { cleanText } from '@/lib/parsers/chunkText'
+import { extractAxes } from '@/lib/ai/extractAxes'
 
-export const maxDuration = 30
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData()
     const file = formData.get('file') as File | null
+    const mode = (formData.get('mode') as string) ?? 'bluff'
 
     if (!file) {
       return NextResponse.json({ error: 'Aucun fichier' }, { status: 400 })
@@ -41,8 +43,43 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanedText = cleanText(rawText)
-    const chapters = extractChapters(cleanedText)
     const wordCount = cleanedText.split(/\s+/).filter(Boolean).length
+
+    let chapters: Array<{ title: string; startIndex: number; endIndex: number }> = []
+
+    if (mode === 'bluff') {
+      // Mode cours : extraction des axes via IA
+      const axes = await extractAxes(cleanedText)
+      chapters = axes.map((axe) => {
+        const searchKey = axe.titre.replace(/^[IVX]+\.\s*/i, '').slice(0, 30).toLowerCase()
+        const idx = cleanedText.toLowerCase().indexOf(searchKey)
+        return {
+          title: axe.titre,
+          startIndex: idx >= 0 ? idx : 0,
+          endIndex: cleanedText.length,
+        }
+      })
+      for (let i = 0; i < chapters.length - 1; i++) {
+        chapters[i].endIndex = chapters[i + 1].startIndex > 0 ? chapters[i + 1].startIndex : chapters[i].endIndex
+      }
+    } else {
+      // Mode QCM/annales : extraction des grands thèmes numérotés (ex: "1. BRÛLURES GRAVES")
+      const themeRegex = /^(\d+)\.\s+([A-ZÀ-ÿ][A-ZÀ-ÿ\s\-'']+)$/gm
+      let match
+      const themes: Array<{ title: string; startIndex: number }> = []
+      while ((match = themeRegex.exec(cleanedText)) !== null) {
+        const title = `${match[1]}. ${match[2].trim()}`
+        // Dédupliquer
+        if (!themes.some((t) => t.title === title)) {
+          themes.push({ title, startIndex: match.index })
+        }
+      }
+      chapters = themes.map((t, i) => ({
+        title: t.title,
+        startIndex: t.startIndex,
+        endIndex: i < themes.length - 1 ? themes[i + 1].startIndex : cleanedText.length,
+      }))
+    }
 
     return NextResponse.json({
       text: cleanedText,

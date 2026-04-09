@@ -74,6 +74,7 @@ function CreatePageInner() {
     try {
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('mode', mode)
       const res = await fetch('/api/ai/parse-document', { method: 'POST', body: formData })
       if (!res.ok) throw new Error(await res.text())
       const data = await res.json()
