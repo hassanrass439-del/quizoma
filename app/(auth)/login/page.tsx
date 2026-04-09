@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createClient } from '@/lib/supabase/client'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, UserRound } from 'lucide-react'
 
 const schema = z.object({
   email: z.string().email('Email invalide'),
@@ -137,6 +137,28 @@ function LoginForm() {
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
           </svg>
           Continuer avec Google
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={async () => {
+            setLoading(true)
+            try {
+              const res = await fetch('/api/auth/guest', { method: 'POST' })
+              if (!res.ok) throw new Error()
+              router.push('/dashboard')
+              router.refresh()
+            } catch {
+              toast.error('Erreur lors de la connexion invité')
+              setLoading(false)
+            }
+          }}
+          disabled={loading}
+          className="w-full min-button border-game-border bg-surface-2 text-muted-game hover:bg-surface-3 hover:text-text rounded-button font-semibold"
+        >
+          <UserRound size={18} className="mr-2" />
+          Continuer en tant qu&apos;invité
         </Button>
 
         <p className="text-center text-muted-game text-sm">

@@ -113,10 +113,24 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
             {/* notch */}
             <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#12121f] rounded-full" />
             <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#12121f] rounded-full" />
-            <span className="text-[11px] font-extrabold text-[#6c3ff5] tracking-[0.3em] uppercase mb-4 block">PARTAGE CE CODE</span>
-            <div className="font-headline font-black text-6xl text-text tracking-widest mb-6" style={{ textShadow: '0 0 20px rgba(108,63,245,0.6)' }}>
+            <span className="text-[11px] font-extrabold text-[#6c3ff5] tracking-[0.3em] uppercase mb-3 block">PARTAGE CE CODE</span>
+            <div className="font-headline font-black text-5xl text-text tracking-widest mb-4" style={{ textShadow: '0 0 20px rgba(108,63,245,0.6)' }}>
               {code}
             </div>
+            {/* QR Code */}
+            <div className="flex justify-center mb-2">
+              <div className="bg-white rounded-xl p-2">
+                <Image
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(gameUrl)}&bgcolor=ffffff&color=6c3ff5&margin=0`}
+                  alt="QR Code"
+                  width={140}
+                  height={140}
+                  className="rounded-lg"
+                  unoptimized
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-game mt-1">Scanne pour rejoindre</p>
           </div>
         </section>
 

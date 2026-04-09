@@ -2,22 +2,22 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import type { StartVotePayload } from '@/types/game.types'
 
 interface Props {
   payload: StartVotePayload
-  totalPlayers: number
-  votedCount: number
+  questionText?: string
   onVote: (answerId: string) => void
   hasVoted: boolean
   currentUserId: string
+  isHost?: boolean
+  onForceNext?: () => void
+  isForcing?: boolean
 }
 
-export function VoteScreen({ payload, totalPlayers, votedCount, onVote, hasVoted, currentUserId }: Props) {
+export function VoteScreen({ payload, questionText, onVote, hasVoted, currentUserId, isHost, onForceNext, isForcing }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
 
-  // Mélange des réponses (fait côté serveur normalement, mais on s'assure côté client aussi)
   const answers = payload.answers.filter((a) => a.player_id !== currentUserId)
 
   function handleVote(answerId: string) {
@@ -33,17 +33,11 @@ export function VoteScreen({ payload, totalPlayers, votedCount, onVote, hasVoted
         <p className="text-muted-game text-sm mt-1">Trouve la vraie réponse !</p>
       </div>
 
-      {/* Progression des votes */}
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs text-muted-game">
-          <span>{votedCount}/{totalPlayers} joueurs ont voté</span>
-          {votedCount === totalPlayers && <span className="text-success">Tous ont voté !</span>}
+      {questionText && (
+        <div className="bg-surface-2 border border-game-border rounded-xl px-4 py-3">
+          <p className="text-text text-sm font-medium leading-relaxed">{questionText}</p>
         </div>
-        <Progress
-          value={(votedCount / totalPlayers) * 100}
-          className="h-2 bg-surface-3"
-        />
-      </div>
+      )}
 
       {/* Boutons de réponse */}
       <div className="flex flex-col gap-3">
@@ -64,9 +58,10 @@ export function VoteScreen({ payload, totalPlayers, votedCount, onVote, hasVoted
       </div>
 
       {hasVoted && (
-        <p className="text-center text-muted-game text-sm animate-pulse">
-          En attente des autres joueurs…
-        </p>
+        <div className="flex items-center justify-center gap-2 py-3">
+          <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-game text-sm">En attente des autres joueurs…</p>
+        </div>
       )}
     </div>
   )

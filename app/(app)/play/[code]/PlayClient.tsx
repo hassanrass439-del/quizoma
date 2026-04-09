@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useGameSync, type GameSyncState } from '@/hooks/useGameSync'
 import { createClient } from '@/lib/supabase/client'
-import { useAntiCheat } from '@/hooks/useAntiCheat'
+import { isCorrectAnswer } from '@/lib/ai/antiCheat'
 import { QuestionCard } from '@/components/game/QuestionCard'
 import { BluffInput } from '@/components/game/BluffInput'
 import { VoteScreen } from '@/components/game/VoteScreen'
 import { RevealScreen } from '@/components/game/RevealScreen'
 import { avatarUrl, getAvatar } from '@/lib/avatars'
 import Image from 'next/image'
+import { SkipForward } from 'lucide-react'
 import type { Profile } from '@/types/game.types'
 
 interface Props {
@@ -57,6 +58,7 @@ export function PlayClient({
   const [votedCount, setVotedCount] = useState(0)
   const [showStopConfirm, setShowStopConfirm] = useState(false)
   const [isStopping, setIsStopping] = useState(false)
+  const [isForcing, setIsForcing] = useState(false)
   const [playerScores, setPlayerScores] = useState<Record<string, number>>(
     Object.fromEntries(initialPlayers.map((p) => [p.user_id, p.score]))
   )
@@ -88,7 +90,7 @@ export function PlayClient({
     ? { vraie_reponse: effectiveQuestionData.vraie_reponse, synonymes: effectiveQuestionData.synonymes }
     : null
 
-  const { isBlocked, checkInput, reset } = useAntiCheat(antiCheatData, mode === 'bluff' ? 1 : 2)
+  const [isBlocked, setIsBlocked] = useState(false)
 
   useEffect(() => {
     if (gameState.revealPayload?.scores) {
@@ -110,23 +112,31 @@ export function PlayClient({
       setHasVoted(false)
       setVotedCount(0)
       setBluffValue('')
-      reset()
+      setIsBlocked(false)
     }
   })
 
   async function submitBluff() {
-    if (!bluffValue.trim() || isBlocked) return
+    const trimmed = bluffValue.trim()
+    if (!trimmed) return
+
+    // Anti-triche : vérifier seulement au moment du submit
+    if (antiCheatData && isCorrectAnswer(trimmed, mode === 'bluff' ? 1 : 2, antiCheatData)) {
+      setIsBlocked(true)
+      return
+    }
+
+    setIsBlocked(false)
     setIsSubmittingBluff(true)
     try {
       const res = await fetch(`/api/game/${code}/submit-bluff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bluff: bluffValue.trim() }),
+        body: JSON.stringify({ bluff: trimmed }),
       })
       if (!res.ok) throw new Error()
       setHasSubmittedBluff(true)
       setBluffValue('')
-      reset()
     } catch {
       toast.error('Erreur lors de l\'envoi du bluff')
     } finally {
@@ -146,6 +156,18 @@ export function PlayClient({
       setVotedCount((v) => v + 1)
     } catch {
       toast.error('Erreur lors du vote')
+    }
+  }
+
+  async function forceNext() {
+    setIsForcing(true)
+    try {
+      const res = await fetch(`/api/game/${code}/force-next`, { method: 'POST' })
+      if (!res.ok) throw new Error()
+    } catch {
+      toast.error('Erreur')
+    } finally {
+      setIsForcing(false)
     }
   }
 
@@ -272,23 +294,24 @@ export function PlayClient({
             ) : (
               <div className="w-full space-y-4">
                 <div className="flex flex-col gap-1">
-                  <h2 className="text-text font-bold text-lg font-headline">Ta fausse réponse 🎭</h2>
+                  <h2 className="text-text font-bold text-lg font-headline">Ta réponse 🎭</h2>
                   <p className="text-text-muted text-sm">Invente une mauvaise réponse pour piéger les autres</p>
                 </div>
                 <BluffInput
                   value={bluffValue}
-                  onChange={(v) => { setBluffValue(v); checkInput(v) }}
+                  onChange={(v) => { setBluffValue(v); setIsBlocked(false) }}
                   onSubmit={submitBluff}
-                  isBlocked={isBlocked}
+                  isBlocked={false}
                   isSubmitting={isSubmittingBluff}
                   mode={mode === 'bluff' ? 1 : 2}
                 />
                 {isBlocked && (
                   <div className="p-4 bg-[#b83900]/10 rounded-xl flex gap-3 items-start border border-[#b83900]/20">
-                    <span className="text-[#ffb59d] text-sm">⚠️</span>
-                    <p className="text-[12px] text-[#ffb59d] leading-snug font-medium">
-                      Anti-triche actif. La vraie réponse est bloquée.
-                    </p>
+                    <span className="text-[#ffb59d] text-lg">⚠️</span>
+                    <div>
+                      <p className="text-[13px] text-[#ffb59d] font-bold">C&apos;est la bonne réponse !</p>
+                      <p className="text-[12px] text-[#ffb59d]/80 mt-0.5">Trouve un vrai bluff pour piéger les autres joueurs.</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -300,11 +323,13 @@ export function PlayClient({
         {gameState.status === 'voting' && gameState.votePayload && (
           <VoteScreen
             payload={gameState.votePayload}
-            totalPlayers={totalPlayers}
-            votedCount={votedCount}
+            questionText={gameState.questionData?.question_text}
             onVote={submitVote}
             hasVoted={hasVoted}
             currentUserId={currentUserId}
+            isHost={isHost}
+            onForceNext={forceNext}
+            isForcing={isForcing}
           />
         )}
 
@@ -335,38 +360,57 @@ export function PlayClient({
         )}
       </div>
 
-      {/* Players bar — who has submitted */}
-      {gameState.status === 'question' && (
+      {/* Bottom bar — avatars + forcer */}
+      {(gameState.status === 'question' || gameState.status === 'voting') && (
         <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#0d0d1a]/80 backdrop-blur-md border-t border-[#484456]/30 px-4 py-3">
-          <div className="max-w-md mx-auto flex justify-center gap-4">
-            {initialPlayers.map((p) => {
-              const profile = (Array.isArray(p.profiles) ? p.profiles[0] : p.profiles) as Profile | null
-              if (!profile) return null
-              const av = getAvatar(profile.avatar_id)
-              const isMe = p.user_id === currentUserId
-              const hasSubmitted = isMe ? hasSubmittedBluff : gameState.submittedPlayers.includes(p.user_id)
-              return (
-                <div key={p.user_id} className="flex flex-col items-center gap-1">
-                  <div className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all duration-300 ${
-                    hasSubmitted ? 'border-[#45dfa4] opacity-100' : 'border-[#484456] opacity-30'
-                  }`}>
-                    <Image
-                      src={avatarUrl(av.seed, av.bg, 40)}
-                      alt={profile.pseudo}
-                      width={40}
-                      height={40}
-                      className="w-full h-full object-cover"
-                      unoptimized
-                    />
+          <div className="max-w-md mx-auto space-y-3">
+            {/* Avatars */}
+            <div className="flex justify-center gap-4">
+              {initialPlayers.map((p) => {
+                const profile = (Array.isArray(p.profiles) ? p.profiles[0] : p.profiles) as Profile | null
+                if (!profile) return null
+                const av = getAvatar(profile.avatar_id)
+                const isMe = p.user_id === currentUserId
+                const isDone = gameState.status === 'question'
+                  ? (isMe ? hasSubmittedBluff : gameState.submittedPlayers.includes(p.user_id))
+                  : (isMe ? hasVoted : false)
+                return (
+                  <div key={p.user_id} className="flex flex-col items-center gap-1">
+                    <div className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all duration-300 ${
+                      isDone ? 'border-[#45dfa4] opacity-100' : 'border-[#484456] opacity-40'
+                    }`}>
+                      <Image
+                        src={avatarUrl(av.seed, av.bg, 40)}
+                        alt={profile.pseudo}
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
+                    </div>
+                    <span className={`text-[10px] font-bold truncate max-w-[56px] text-center transition-all duration-300 ${
+                      isDone ? 'text-[#45dfa4]' : 'text-text-muted/50'
+                    }`}>
+                      {isMe ? 'Toi' : profile.pseudo}
+                    </span>
                   </div>
-                  <span className={`text-[10px] font-bold truncate max-w-[56px] text-center transition-all duration-300 ${
-                    hasSubmitted ? 'text-[#45dfa4]' : 'text-text-muted/50'
-                  }`}>
-                    {isMe ? 'Toi' : profile.pseudo}
-                  </span>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
+
+            {/* Bouton forcer — hôte uniquement, après avoir soumis/voté */}
+            {isHost && ((gameState.status === 'question' && hasSubmittedBluff) || (gameState.status === 'voting' && hasVoted)) && (
+              <button
+                onClick={forceNext}
+                disabled={isForcing}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-warning/30 bg-warning/10 text-warning font-semibold text-sm hover:bg-warning/20 transition-all disabled:opacity-50 active:scale-[0.98]"
+              >
+                <SkipForward size={16} />
+                {isForcing ? 'Passage en cours…' : (
+                  gameState.status === 'question' ? 'Forcer le passage au vote' : 'Forcer le passage au résultat'
+                )}
+              </button>
+            )}
           </div>
         </div>
       )}

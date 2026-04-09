@@ -11,7 +11,6 @@ export async function GET(req: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
-      // Vérifier si le profil existe (première connexion → onboarding)
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: profile } = await supabase
@@ -20,23 +19,16 @@ export async function GET(req: NextRequest) {
           .eq('id', user.id)
           .maybeSingle()
 
-        // Première connexion Google : created_at ≈ last_sign_in_at (écart < 10s)
-        const createdAt = new Date(user.created_at).getTime()
-        const lastSignIn = new Date(user.last_sign_in_at ?? user.created_at).getTime()
-        const isFirstLogin = Math.abs(lastSignIn - createdAt) < 10000
-
+        // Forcer onboarding si demandé ou si profil incomplet
         const needsOnboarding =
+          next === '/onboarding' ||
           !profile ||
           !profile.pseudo ||
           profile.pseudo === 'Joueur' ||
-          !profile.avatar_id ||
-          isFirstLogin
+          !profile.avatar_id
 
         if (needsOnboarding) {
-          const onboardingUrl = next !== '/dashboard'
-            ? `/onboarding?next=${encodeURIComponent(next)}`
-            : '/onboarding'
-          return NextResponse.redirect(new URL(onboardingUrl, req.url))
+          return NextResponse.redirect(new URL('/onboarding', req.url))
         }
       }
       return NextResponse.redirect(new URL(next, req.url))

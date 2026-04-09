@@ -38,8 +38,9 @@ function OnboardingForm() {
   const [selectedAvatar, setSelectedAvatar] = useState('f_doctor_1')
   const [activeTab, setActiveTab] = useState<'f' | 'm'>('f')
   const [loading, setLoading] = useState(false)
+  const [submitAttempted, setSubmitAttempted] = useState(false)
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<PseudoForm>({
+  const { register, handleSubmit, watch, formState: { errors }, trigger } = useForm<PseudoForm>({
     resolver: zodResolver(pseudoSchema),
   })
   const watchedPseudo = watch('pseudo', '')
@@ -60,6 +61,7 @@ function OnboardingForm() {
   }, [watchedPseudo])
 
   async function onSubmit(data: PseudoForm) {
+    setSubmitAttempted(true)
     if (pseudoStatus !== 'available') return
     setLoading(true)
     const supabase = createClient()
@@ -114,7 +116,11 @@ function OnboardingForm() {
                 placeholder="Ex: DrBoss42"
                 maxLength={20}
                 autoFocus
-                className="min-input bg-[#1e1e2c] border-[#484456] text-text placeholder:text-text-muted font-bold text-base pr-10"
+                className={`min-input bg-[#1e1e2c] text-text placeholder:text-text-muted font-bold text-base pr-10 ${
+                  (errors.pseudo || (submitAttempted && !watchedPseudo))
+                    ? 'border-danger ring-1 ring-danger/30'
+                    : 'border-[#484456]'
+                }`}
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-base">
                 {pseudoStatus === 'checking' && <span className="animate-spin inline-block text-sm">⏳</span>}
@@ -123,6 +129,12 @@ function OnboardingForm() {
               </div>
             </div>
             {errors.pseudo && <p className="text-danger text-xs px-1">{errors.pseudo.message}</p>}
+            {!errors.pseudo && submitAttempted && !watchedPseudo && (
+              <p className="text-danger text-xs px-1 font-semibold">Choisis un surnom pour continuer</p>
+            )}
+            {!errors.pseudo && submitAttempted && pseudoStatus === 'idle' && watchedPseudo && watchedPseudo.length < 3 && (
+              <p className="text-danger text-xs px-1 font-semibold">Minimum 3 caractères</p>
+            )}
             {pseudoStatus === 'taken' && <p className="text-danger text-xs px-1 font-semibold">Déjà pris, essaie un autre</p>}
           </div>
 
@@ -204,7 +216,7 @@ function OnboardingForm() {
 
           <Button
             type="submit"
-            disabled={pseudoStatus !== 'available' || loading}
+            disabled={loading}
             className="w-full h-14 bg-gradient-to-r from-[#6c3ff5] to-[#cbbeff] text-[#1e0060] font-black font-headline text-base rounded-xl disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
           >
             {loading ? 'Création...' : 'C\'est parti 🚀'}

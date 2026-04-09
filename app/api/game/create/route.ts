@@ -138,15 +138,31 @@ export async function POST(req: NextRequest) {
       if (mode === 'bluff') {
         const chunks = chunkText(cleanedText, { size: 500, overlap: 50 })
         const allQuestions: Array<{ question: string; vraie_reponse: string; synonymes: string[]; explication: string }> = []
+        const existingTexts = new Set<string>()
 
-        for (const chunk of chunks) {
-          if (allQuestions.length >= config.nb_questions) break
-          try {
-            const remaining = config.nb_questions - allQuestions.length
-            const result = await generateQuestions(chunk, remaining)
-            allQuestions.push(...result.questions_generees)
-          } catch (err) {
-            console.error('[create] chunk generation error:', err)
+        // Plusieurs passes sur les chunks jusqu'à avoir assez de questions
+        let pass = 0
+        const maxPasses = 3
+        while (allQuestions.length < config.nb_questions && pass < maxPasses) {
+          for (const chunk of chunks) {
+            if (allQuestions.length >= config.nb_questions) break
+            try {
+              const remaining = config.nb_questions - allQuestions.length
+              const result = await generateQuestions(chunk, remaining)
+              // Dédupliquer les questions entre passes
+              for (const q of result.questions_generees) {
+                if (!existingTexts.has(q.vraie_reponse.toLowerCase())) {
+                  existingTexts.add(q.vraie_reponse.toLowerCase())
+                  allQuestions.push(q)
+                }
+              }
+            } catch (err) {
+              console.error('[create] chunk generation error:', err)
+            }
+          }
+          pass++
+          if (allQuestions.length < config.nb_questions) {
+            console.log(`[create] pass ${pass}: ${allQuestions.length}/${config.nb_questions} questions, retrying...`)
           }
         }
 

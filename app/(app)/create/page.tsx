@@ -13,7 +13,6 @@ import type { Chapter } from '@/types/ai.types'
 import type { GameMode } from '@/types/game.types'
 
 const NB_QUESTIONS_OPTIONS = [4, 10, 15, 20]
-const TIMER_OPTIONS = [30, 45, 60]
 
 export default function CreatePage() {
   return (
@@ -321,31 +320,18 @@ function CreatePageInner() {
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <label className="text-text font-semibold text-sm tracking-wide uppercase">Timer par question</label>
-                <div className="flex gap-2">
-                  {TIMER_OPTIONS.map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTimerSeconds(t)}
-                      className={`flex-1 py-3 rounded-xl font-headline font-bold transition-all border-2 ${
-                        timerSeconds === t
-                          ? 'bg-[#6c3ff5] border-[#6c3ff5] text-[#e9e1ff]'
-                          : 'bg-surface-2 border-[#484456]/40 text-text hover:border-[#6c3ff5]/40'
-                      }`}
-                    >
-                      {t}s
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               <Button
                 onClick={handleCreate}
                 disabled={isCreating}
                 className="w-full h-14 bg-gradient-to-r from-[#6c3ff5] to-primary-tint rounded-xl font-headline font-extrabold text-[#e9e1ff] text-base shadow-lg shadow-[#6c3ff5]/20 active:scale-[0.98] transition-all"
               >
-                {isCreating ? '⚡ Génération…' : '⚡ Générer et créer la partie'}
+                {isCreating ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Génération en cours…
+                  </span>
+                ) : '⚡ Générer et créer la partie'}
               </Button>
             </motion.div>
           )}
