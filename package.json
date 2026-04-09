@@ -17,6 +17,8 @@
     "@supabase/supabase-js": "^2.101.1",
     "@types/pdf-parse": "^1.1.5",
     "@types/qrcode.react": "^1.0.5",
+    "agora-access-token": "^2.0.4",
+    "agora-rtc-sdk-ng": "^4.24.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",

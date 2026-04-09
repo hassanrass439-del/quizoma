@@ -82,6 +82,10 @@ function CreatePageInner() {
       setChapters(data.chapters)
       setSelectedChapters(data.chapters.length > 0 ? [data.chapters[0].title] : [])
       setWordCount(data.wordCount)
+      if (data.wordCount < 5) {
+        toast.error('Impossible d\'extraire le texte du document. Essaie de coller le texte manuellement.')
+        return
+      }
       setStep(data.chapters.length > 0 ? 3 : 4)
     } catch {
       toast.error('Erreur lors de l\'extraction du document')

@@ -11,6 +11,8 @@ import { BluffInput } from '@/components/game/BluffInput'
 import { VoteScreen } from '@/components/game/VoteScreen'
 import { RevealScreen } from '@/components/game/RevealScreen'
 import { avatarUrl, getAvatar } from '@/lib/avatars'
+import { useVoiceChat } from '@/hooks/useVoiceChat'
+import { VoiceBar } from '@/components/game/VoiceBar'
 import Image from 'next/image'
 import { SkipForward } from 'lucide-react'
 import type { Profile } from '@/types/game.types'
@@ -66,6 +68,7 @@ export function PlayClient({
   const isHost = currentUserId === hostId
   const totalPlayers = initialPlayers.length
   const currentIndex = gameState.questionIndex
+  const voice = useVoiceChat(`game-${code}`)
   const myScore = playerScores[currentUserId] ?? 0
 
   // Rejoin: si le joueur revient et qu'il manque des données (broadcast manqué)
@@ -221,8 +224,11 @@ export function PlayClient({
   }
 
   useEffect(() => {
-    if (gameState.status === 'finished') router.push(`/results/${code}`)
-  }, [gameState.status, code, router])
+    if (gameState.status === 'finished') {
+      voice.leave()
+      router.push(`/results/${code}`)
+    }
+  }, [gameState.status, code, router, voice])
 
   return (
     <div className="flex flex-col min-h-dvh bg-[#12121f]">
@@ -266,6 +272,16 @@ export function PlayClient({
             </button>
           )}
         </div>
+
+        {/* Voice */}
+        <VoiceBar
+          status={voice.status}
+          isMuted={voice.isMuted}
+          remoteUsersCount={voice.remoteUsers.length}
+          onToggleMute={voice.toggleMute}
+          onJoin={voice.join}
+          onLeave={voice.leave}
+        />
 
         {/* My score */}
         <div className="flex items-center gap-2 bg-[#6c3ff5]/20 px-3 py-1.5 rounded-xl">

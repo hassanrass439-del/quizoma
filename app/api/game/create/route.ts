@@ -9,7 +9,7 @@ import crypto from 'crypto'
 
 const schema = z.object({
   mode: z.enum(['bluff', 'annales']),
-  text: z.string().min(50),
+  text: z.string().min(10),
   fullText: z.string().optional(),
   chapters: z.array(z.object({
     title: z.string(),
@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const parsed = schema.safeParse(body)
     if (!parsed.success) {
+      console.error('[create] validation error:', JSON.stringify(parsed.error.flatten()))
       return NextResponse.json({ error: 'Données invalides', details: parsed.error.flatten() }, { status: 400 })
     }
 

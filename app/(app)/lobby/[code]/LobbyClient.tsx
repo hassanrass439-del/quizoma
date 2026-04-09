@@ -6,6 +6,8 @@ import { toast } from 'sonner'
 import { Copy, Check, Share2, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { avatarUrl, getAvatar } from '@/lib/avatars'
+import { useVoiceChat } from '@/hooks/useVoiceChat'
+import { VoiceBar } from '@/components/game/VoiceBar'
 import Image from 'next/image'
 import type { Profile } from '@/types/game.types'
 
@@ -25,6 +27,7 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
 
   const isHost = currentUserId === hostId
   const gameUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/lobby/${code}`
+  const voice = useVoiceChat(`lobby-${code}`)
 
   async function copyCode() {
     try {
@@ -98,10 +101,14 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
         <h1 className="font-headline font-extrabold text-xl tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#6c3ff5] to-[#cbbeff]">
           Salle d&apos;attente
         </h1>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 bg-[#45dfa4] rounded-full animate-pulse" />
-          <span className="text-text-muted text-xs font-bold">En attente</span>
-        </div>
+        <VoiceBar
+          status={voice.status}
+          isMuted={voice.isMuted}
+          remoteUsersCount={voice.remoteUsers.length}
+          onToggleMute={voice.toggleMute}
+          onJoin={voice.join}
+          onLeave={voice.leave}
+        />
       </header>
 
       <main className="px-6 pt-4 space-y-8 max-w-md mx-auto">

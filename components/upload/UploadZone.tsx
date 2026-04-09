@@ -26,7 +26,7 @@ export function UploadZone({ onFileSelect, onTextPaste, isProcessing, wordCount 
   }
 
   function handleTextSubmit() {
-    if (pastedText.trim().length < 100) return
+    if (pastedText.trim().length < 10) return
     onTextPaste(pastedText.trim())
     setShowTextArea(false)
   }
@@ -50,11 +50,11 @@ export function UploadZone({ onFileSelect, onTextPaste, isProcessing, wordCount 
           <textarea
             value={pastedText}
             onChange={(e) => setPastedText(e.target.value)}
-            placeholder="Colle ton cours ici (minimum 100 mots)…"
+            placeholder="Colle ton cours ici (minimum 5 mots)…"
             className="w-full min-h-[200px] bg-[#0d0d1a] border border-[#484456] rounded-xl p-4 text-text placeholder:text-text-muted resize-none focus:outline-none focus:border-[#6c3ff5] text-sm"
             autoFocus
           />
-          <span className={`absolute bottom-3 right-3 text-xs font-bold ${words < 100 ? 'text-danger' : 'text-[#45dfa4]'}`}>
+          <span className={`absolute bottom-3 right-3 text-xs font-bold ${words < 5 ? 'text-danger' : 'text-[#45dfa4]'}`}>
             {words} mots
           </span>
         </div>
@@ -67,7 +67,7 @@ export function UploadZone({ onFileSelect, onTextPaste, isProcessing, wordCount 
           </button>
           <button
             onClick={handleTextSubmit}
-            disabled={words < 100}
+            disabled={words < 5}
             className="flex-1 h-12 rounded-xl bg-[#6c3ff5] text-[#e9e1ff] font-headline font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
           >
             Utiliser ce texte
@@ -144,7 +144,7 @@ export function UploadZone({ onFileSelect, onTextPaste, isProcessing, wordCount 
       {/* Hint */}
       <div className="flex items-start gap-3 px-4 py-3 bg-[#0d0d1a] rounded-xl border border-[#484456]/20">
         <Info size={18} className="text-text-muted flex-shrink-0 mt-0.5" />
-        <p className="text-text-muted text-[13px] leading-snug">Minimum 100 mots requis pour générer les questions.</p>
+        <p className="text-text-muted text-[13px] leading-snug">Importe ton fichier ou colle ton texte pour commencer.</p>
       </div>
 
       {wordCount > 0 && (

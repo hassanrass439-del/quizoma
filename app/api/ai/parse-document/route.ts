@@ -4,6 +4,7 @@ import { parsePDF } from '@/lib/parsers/pdfParser'
 import { parseDOCX } from '@/lib/parsers/docxParser'
 import { cleanText } from '@/lib/parsers/chunkText'
 import { extractAxes } from '@/lib/ai/extractAxes'
+import { ocrPDF } from '@/lib/ai/ocrPDF'
 
 export const maxDuration = 60
 
@@ -29,7 +30,9 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer())
     let rawText = ''
 
-    if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+    const isPDF = file.type === 'application/pdf' || file.name.endsWith('.pdf')
+
+    if (isPDF) {
       rawText = await parsePDF(buffer)
     } else if (
       file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
@@ -40,6 +43,17 @@ export async function POST(req: NextRequest) {
       rawText = buffer.toString('utf-8')
     } else {
       return NextResponse.json({ error: 'Format non supporté (PDF, DOCX, TXT uniquement)' }, { status: 415 })
+    }
+
+    // Fallback OCR : si le PDF a peu de texte (scan/image), utiliser Gemini Vision
+    if (isPDF && rawText.split(/\s+/).filter(Boolean).length < 20) {
+      console.log('[parse-document] Texte insuffisant, fallback OCR Gemini...')
+      try {
+        rawText = await ocrPDF(buffer)
+        console.log('[parse-document] OCR OK, mots extraits:', rawText.split(/\s+/).length)
+      } catch (err) {
+        console.error('[parse-document] OCR error:', err)
+      }
     }
 
     const cleanedText = cleanText(rawText)
