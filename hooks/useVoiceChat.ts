@@ -10,7 +10,7 @@ import AgoraRTC, {
 export type VoiceStatus = 'idle' | 'connecting' | 'connected' | 'error'
 
 interface VoiceUser {
-  uid: number
+  uid: number | string
   speaking: boolean
 }
 
