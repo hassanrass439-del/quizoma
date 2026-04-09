@@ -113,20 +113,23 @@ export async function POST(req: NextRequest, { params }: Params) {
         .eq('question_id', currentQuestion.id) as { data: Array<{ id: string; bluff_text: string; player_id: string; profiles: { pseudo: string; avatar_id: string } | null }> | null }
 
       const { data: votes } = await serviceSupabase
-        .from('player_votes')
-        .select('player_id, answer_id, profiles:player_id(pseudo, avatar_id)')
-        .eq('question_id', currentQuestion.id) as { data: Array<{ player_id: string; answer_id: string; profiles: { pseudo: string } | null }> | null }
+        .from('votes')
+        .select('voter_id, voted_for_bluff_id, is_correct, profiles:voter_id(pseudo, avatar_id)')
+        .eq('question_id', currentQuestion.id) as { data: Array<{ voter_id: string; voted_for_bluff_id: string | null; is_correct: boolean; profiles: { pseudo: string; avatar_id: string } | null }> | null }
 
       // Calculer les scores
       const scores: Record<string, number> = {}
       for (const vote of votes ?? []) {
-        if (vote.answer_id === 'correct') {
-          scores[vote.player_id] = (scores[vote.player_id] ?? 0) + 1
-        } else {
-          const bluff = (bluffs ?? []).find((b) => b.id === vote.answer_id)
-          if (bluff) {
-            scores[bluff.player_id] = (scores[bluff.player_id] ?? 0) + 1
-          }
+        // +2 pts pour la bonne réponse
+        if (vote.is_correct) {
+          scores[vote.voter_id] = (scores[vote.voter_id] ?? 0) + 2
+        }
+      }
+      for (const bluff of bluffs ?? []) {
+        // +1 pt par vote reçu sur son bluff
+        const votesForBluff = (votes ?? []).filter((v) => v.voted_for_bluff_id === bluff.id)
+        if (votesForBluff.length > 0) {
+          scores[bluff.player_id] = (scores[bluff.player_id] ?? 0) + votesForBluff.length
         }
       }
 
@@ -141,7 +144,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
       const bluffResults = (bluffs ?? []).map((b) => {
         const bluffVoters = (votes ?? [])
-          .filter((v) => v.answer_id === b.id)
+          .filter((v) => v.voted_for_bluff_id === b.id)
           .map((v) => ({ pseudo: v.profiles?.pseudo ?? '?' }))
         return {
           id: b.id,
