@@ -75,15 +75,16 @@ export async function POST(req: NextRequest, { params }: Params) {
 
       if (!currentQuestion) return NextResponse.json({ error: 'Question introuvable' }, { status: 404 })
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: bluffs } = await serviceSupabase
         .from('player_bluffs')
         .select('id, bluff_text, player_id, profiles:player_id(pseudo, avatar_id)')
-        .eq('question_id', currentQuestion.id)
+        .eq('question_id', currentQuestion.id) as { data: Array<{ id: string; bluff_text: string; player_id: string; profiles: { pseudo: string; avatar_id: string } | null }> | null }
 
       const { data: votes } = await serviceSupabase
         .from('player_votes')
         .select('player_id, answer_id, profiles:player_id(pseudo, avatar_id)')
-        .eq('question_id', currentQuestion.id)
+        .eq('question_id', currentQuestion.id) as { data: Array<{ player_id: string; answer_id: string; profiles: { pseudo: string } | null }> | null }
 
       // Calculer les scores
       const scores: Record<string, number> = {}
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         if (vote.answer_id === 'correct') {
           scores[vote.player_id] = (scores[vote.player_id] ?? 0) + 1
         } else {
-          const bluff = (bluffs ?? []).find((b: { id: string }) => b.id === vote.answer_id)
+          const bluff = (bluffs ?? []).find((b) => b.id === vote.answer_id)
           if (bluff) {
             scores[bluff.player_id] = (scores[bluff.player_id] ?? 0) + 1
           }
@@ -103,22 +104,18 @@ export async function POST(req: NextRequest, { params }: Params) {
         await serviceSupabase.rpc('increment_player_score', {
           p_game_id: game.id,
           p_user_id: userId,
-          p_delta: delta,
+          p_points: delta,
         })
       }
 
-      const bluffResults = (bluffs ?? []).map((b: { id: string; bluff_text: string; player_id: string; profiles: unknown }) => {
-        const profile = (Array.isArray(b.profiles) ? b.profiles[0] : b.profiles) as { pseudo: string; avatar_id: string } | null
+      const bluffResults = (bluffs ?? []).map((b) => {
         const bluffVoters = (votes ?? [])
-          .filter((v: { answer_id: string }) => v.answer_id === b.id)
-          .map((v: { profiles: unknown }) => {
-            const vp = (Array.isArray(v.profiles) ? v.profiles[0] : v.profiles) as { pseudo: string } | null
-            return { pseudo: vp?.pseudo ?? '?' }
-          })
+          .filter((v) => v.answer_id === b.id)
+          .map((v) => ({ pseudo: v.profiles?.pseudo ?? '?' }))
         return {
           id: b.id,
           text: b.bluff_text,
-          author: { pseudo: profile?.pseudo ?? '?' },
+          author: { pseudo: b.profiles?.pseudo ?? '?' },
           voters: bluffVoters,
         }
       })
