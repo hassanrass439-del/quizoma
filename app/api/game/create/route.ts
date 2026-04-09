@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { generateQuestions } from '@/lib/ai/generateQuestions'
+
+export const maxDuration = 60
 import { chunkText, cleanText } from '@/lib/parsers/chunkText'
 import { parseQCMBlocks } from '@/lib/parsers/parseQCMBlocks'
 import { generateGameCode } from '@/lib/utils/generateCode'

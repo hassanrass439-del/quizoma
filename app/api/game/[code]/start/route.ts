@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { serverBroadcast } from '@/lib/supabase/broadcast'
 import { solveQCMQuestion } from '@/lib/ai/solveQCMQuestion'
 
+export const maxDuration = 60
+
 interface Params {
   params: Promise<{ code: string }>
 }
