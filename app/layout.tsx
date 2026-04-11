@@ -33,6 +33,27 @@ export const metadata: Metadata = {
     icon: '/favicon.png',
     apple: '/icon-192.png',
   },
+  openGraph: {
+    title: 'Quizoma — Révise en bluffant',
+    description: 'Importe tes cours, l\'IA génère des questions, et piège tes camarades.',
+    url: 'https://www.quizoma.ma',
+    siteName: 'Quizoma',
+    images: [
+      {
+        url: 'https://www.quizoma.ma/logo.png',
+        width: 512,
+        height: 512,
+        alt: 'Quizoma',
+      },
+    ],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Quizoma — Révise en bluffant',
+    description: 'Importe tes cours, l\'IA génère des questions, et piège tes camarades.',
+    images: ['https://www.quizoma.ma/logo.png'],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
