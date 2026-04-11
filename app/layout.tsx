@@ -29,6 +29,10 @@ export const metadata: Metadata = {
   title: 'Quizoma — Révise en bluffant',
   description: 'Jeu pédagogique multijoueur avec IA. Importe tes cours, génère des questions, et piège tes camarades.',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.png',
+    apple: '/icon-192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

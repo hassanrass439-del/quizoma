@@ -113,7 +113,8 @@ export default function RegisterPage() {
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center px-4 bg-surface-1">
       <div className="w-full max-w-[390px] space-y-6">
-        <div className="text-center space-y-1">
+        <div className="flex flex-col items-center text-center space-y-2">
+          <img src="/logo.png" alt="Quizoma" className="w-16 h-16 rounded-xl" />
           <h1 className="text-4xl font-black text-primary">Quizoma</h1>
           <p className="text-muted-game text-sm">Crée ton compte</p>
         </div>

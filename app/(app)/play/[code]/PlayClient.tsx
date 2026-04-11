@@ -30,6 +30,8 @@ interface Props {
   initialStatus: string
   initialQuestionIndex: number
   initialQuestionData: unknown
+  initialHasSubmittedBluff: boolean
+  initialHasVoted: boolean
 }
 
 export function PlayClient({
@@ -45,6 +47,8 @@ export function PlayClient({
   initialStatus,
   initialQuestionIndex,
   initialQuestionData,
+  initialHasSubmittedBluff,
+  initialHasVoted,
 }: Props) {
   const router = useRouter()
   const gameState = useGameSync(code, {
@@ -55,8 +59,8 @@ export function PlayClient({
 
   const [bluffValue, setBluffValue] = useState('')
   const [isSubmittingBluff, setIsSubmittingBluff] = useState(false)
-  const [hasSubmittedBluff, setHasSubmittedBluff] = useState(false)
-  const [hasVoted, setHasVoted] = useState(false)
+  const [hasSubmittedBluff, setHasSubmittedBluff] = useState(initialHasSubmittedBluff)
+  const [hasVoted, setHasVoted] = useState(initialHasVoted)
   const [votedCount, setVotedCount] = useState(0)
   const [showStopConfirm, setShowStopConfirm] = useState(false)
   const [isStopping, setIsStopping] = useState(false)

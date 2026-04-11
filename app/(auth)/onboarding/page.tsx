@@ -98,9 +98,10 @@ function OnboardingForm() {
       <div className="w-full max-w-[390px] mx-auto flex flex-col gap-7">
 
         {/* Welcome */}
-        <div className="text-center">
+        <div className="flex flex-col items-center text-center">
+          <img src="/logo.png" alt="Quizoma" className="w-14 h-14 rounded-xl mb-3" />
           <h1 className="text-3xl font-black text-text font-headline leading-tight">
-            Crée ton profil 🎓
+            Crée ton profil
           </h1>
           <p className="text-text-muted text-sm mt-1">Choisis un surnom et un avatar pour jouer</p>
         </div>

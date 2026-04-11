@@ -18,6 +18,7 @@ export default function LandingPage() {
           <div className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 rounded-full px-4 py-1.5 text-primary-light text-xs font-semibold uppercase tracking-wider">
             Révision gamifiée
           </div>
+          <img src="/logo.png" alt="Quizoma" className="w-24 h-24 rounded-2xl mx-auto" />
           <h1 className="text-5xl font-black text-text leading-none">
             Quizoma
           </h1>

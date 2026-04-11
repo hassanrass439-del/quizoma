@@ -61,6 +61,25 @@ export default async function PlayPage({ params }: Props) {
     finalQuestion = anyQuestion
   }
 
+  // Vérifier si le joueur a déjà soumis un bluff / voté pour cette question
+  let initialHasSubmittedBluff = false
+  let initialHasVoted = false
+  if (finalQuestion) {
+    const { count: bluffCount } = await supabase
+      .from('player_bluffs')
+      .select('*', { count: 'exact', head: true })
+      .eq('question_id', finalQuestion.id)
+      .eq('player_id', user.id)
+    initialHasSubmittedBluff = (bluffCount ?? 0) > 0
+
+    const { count: voteCount } = await supabase
+      .from('votes')
+      .select('*', { count: 'exact', head: true })
+      .eq('question_id', finalQuestion.id)
+      .eq('voter_id', user.id)
+    initialHasVoted = (voteCount ?? 0) > 0
+  }
+
   return (
     <PlayClient
       code={code}
@@ -75,6 +94,8 @@ export default async function PlayPage({ params }: Props) {
       initialStatus={game.status as string}
       initialQuestionIndex={currentQuestionIndex}
       initialQuestionData={finalQuestion ?? null}
+      initialHasSubmittedBluff={initialHasSubmittedBluff}
+      initialHasVoted={initialHasVoted}
     />
   )
 }

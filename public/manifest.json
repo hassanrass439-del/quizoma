@@ -1,0 +1,21 @@
+{
+  "name": "Quizoma",
+  "short_name": "Quizoma",
+  "description": "Révise en bluffant — Jeu pédagogique multijoueur avec IA",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0D0D1A",
+  "theme_color": "#6C3FF5",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
