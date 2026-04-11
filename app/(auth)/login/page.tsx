@@ -47,7 +47,13 @@ function LoginForm() {
       password: data.password,
     })
     if (error) {
-      toast.error(error.message)
+      if (error.message === 'Invalid login credentials') {
+        toast.error('Email ou mot de passe incorrect. Si tu viens de t\'inscrire, vérifie ton email.')
+      } else if (error.message === 'Email not confirmed') {
+        toast.error('Confirme ton email avant de te connecter (vérifie ta boîte mail).')
+      } else {
+        toast.error(error.message)
+      }
       setLoading(false)
       return
     }
