@@ -75,12 +75,28 @@ export async function POST(req: NextRequest, { params }: Params) {
         .select('id, bluff_text, player_id')
         .eq('question_id', currentQuestion.id)
 
-      const allAnswers = [
-        { id: 'correct', text: currentQuestion.vraie_reponse, player_id: null },
-        ...(bluffs ?? []).map((b: { id: string; bluff_text: string; player_id: string }) => ({
-          id: b.id,
-          text: b.bluff_text,
-          player_id: b.player_id,
+      // Dédupliquer par texte, garder tous les player_ids
+      const correctText = currentQuestion.vraie_reponse.trim().toLowerCase()
+      const grouped = new Map<string, { id: string; text: string; player_ids: string[] }>()
+
+      for (const b of (bluffs ?? []) as Array<{ id: string; bluff_text: string; player_id: string }>) {
+        const key = b.bluff_text.trim().toLowerCase()
+        if (key === correctText) continue
+        const existing = grouped.get(key)
+        if (existing) {
+          existing.player_ids.push(b.player_id)
+        } else {
+          grouped.set(key, { id: b.id, text: b.bluff_text, player_ids: [b.player_id] })
+        }
+      }
+
+      const allAnswers: Array<{ id: string; text: string; player_id: string | null; player_ids: string[] }> = [
+        { id: 'correct', text: currentQuestion.vraie_reponse, player_id: null, player_ids: [] },
+        ...[...grouped.values()].map((g) => ({
+          id: g.id,
+          text: g.text,
+          player_id: g.player_ids.length === 1 ? g.player_ids[0] : null,
+          player_ids: g.player_ids.length === 1 ? g.player_ids : [],
         })),
       ]
 

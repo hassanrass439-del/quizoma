@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { JoinGameForm } from '@/components/dashboard/JoinGameForm'
 import { getAvatar, avatarUrl } from '@/lib/avatars'
 import Image from 'next/image'
-import { ChevronRight, BookOpen, Gamepad2, Trophy, TrendingUp, Bell, Plus } from 'lucide-react'
+import { ChevronRight, BookOpen, Gamepad2, Trophy, TrendingUp, Plus } from 'lucide-react'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -57,9 +57,7 @@ export default async function DashboardPage() {
             </span>
           </div>
         </div>
-        <Link href="/profile" className="w-11 h-11 flex items-center justify-center bg-surface-2 rounded-xl text-text hover:bg-surface-3 transition-colors">
-          <Bell size={20} />
-        </Link>
+        <img src="/logo.png" alt="Quizoma" className="w-12 h-12 rounded-xl" />
       </header>
 
       <main className="px-6 space-y-8">

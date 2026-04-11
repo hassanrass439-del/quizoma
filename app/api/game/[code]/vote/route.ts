@@ -49,15 +49,27 @@ export async function POST(req: NextRequest, { params }: Params) {
     const isCorrect = parsed.data.answer_id === 'correct'
     const bluffId = isCorrect ? null : parsed.data.answer_id
 
-    // Vérifier que le bluff voté appartient à quelqu'un d'autre
+    // Vérifier que le bluff voté existe et que le joueur ne vote pas pour son propre bluff unique
     if (!isCorrect) {
       const { data: bluff } = await supabase
         .from('player_bluffs')
-        .select('player_id')
+        .select('player_id, bluff_text')
         .eq('id', bluffId as string)
         .single()
-      if (!bluff || bluff.player_id === user.id) {
+      if (!bluff) {
         return NextResponse.json({ error: 'Vote invalide' }, { status: 400 })
+      }
+      // Vérifier si d'autres joueurs ont soumis le même texte (bluff partagé → autoriser)
+      if (bluff.player_id === user.id) {
+        const { count: sameTextCount } = await supabase
+          .from('player_bluffs')
+          .select('*', { count: 'exact', head: true })
+          .eq('question_id', currentQuestion.id)
+          .ilike('bluff_text', bluff.bluff_text)
+        // Bluff unique → bloquer. Bluff partagé par d'autres → autoriser.
+        if ((sameTextCount ?? 0) <= 1) {
+          return NextResponse.json({ error: 'Vote invalide' }, { status: 400 })
+        }
       }
     }
 

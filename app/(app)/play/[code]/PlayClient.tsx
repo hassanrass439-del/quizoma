@@ -11,7 +11,7 @@ import { BluffInput } from '@/components/game/BluffInput'
 import { VoteScreen } from '@/components/game/VoteScreen'
 import { RevealScreen } from '@/components/game/RevealScreen'
 import { avatarUrl, getAvatar } from '@/lib/avatars'
-import { useVoiceChat } from '@/hooks/useVoiceChat'
+import { useVoice } from '@/contexts/VoiceContext'
 import { VoiceBar } from '@/components/game/VoiceBar'
 import Image from 'next/image'
 import { SkipForward } from 'lucide-react'
@@ -72,7 +72,8 @@ export function PlayClient({
   const isHost = currentUserId === hostId
   const totalPlayers = initialPlayers.length
   const currentIndex = gameState.questionIndex
-  const voice = useVoiceChat(`game-${code}`)
+  const voice = useVoice()
+  const voiceChannel = `voice-${code}`
   const myScore = playerScores[currentUserId] ?? 0
 
   // Rejoin: si le joueur revient et qu'il manque des données (broadcast manqué)
@@ -208,9 +209,10 @@ export function PlayClient({
       const res = await fetch(`/api/game/${code}/stop`, { method: 'POST' })
       if (!res.ok) throw new Error()
       setShowStopConfirm(false)
+      voice.leave()
+      router.push(`/results/${code}`)
     } catch {
       toast.error('Erreur lors de l\'arrêt')
-    } finally {
       setIsStopping(false)
     }
   }
@@ -227,8 +229,10 @@ export function PlayClient({
     }
   }
 
+  const hasRedirected = useRef(false)
   useEffect(() => {
-    if (gameState.status === 'finished') {
+    if (gameState.status === 'finished' && !hasRedirected.current) {
+      hasRedirected.current = true
       voice.leave()
       router.push(`/results/${code}`)
     }
@@ -283,7 +287,7 @@ export function PlayClient({
           isMuted={voice.isMuted}
           remoteUsersCount={voice.remoteUsers.length}
           onToggleMute={voice.toggleMute}
-          onJoin={voice.join}
+          onJoin={() => voice.join(voiceChannel)}
           onLeave={voice.leave}
         />
 

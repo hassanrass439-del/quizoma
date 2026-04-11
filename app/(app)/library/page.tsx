@@ -16,7 +16,11 @@ export default async function LibraryPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <MobileHeader title="Ma Bibliothèque" backHref="/dashboard" />
+      <MobileHeader
+        title="Ma Bibliothèque"
+        backHref="/dashboard"
+        actions={<img src="/logo.png" alt="Quizoma" className="w-8 h-8 rounded-lg" />}
+      />
       <LibraryClient initialQuizzes={quizzes ?? []} />
     </div>
   )

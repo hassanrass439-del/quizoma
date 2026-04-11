@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     const { data: game } = await supabase
       .from('games')
-      .select('id, status')
+      .select('id, host_id, status')
       .eq('code', code)
       .single()
 
@@ -30,7 +30,18 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'La partie a déjà commencé' }, { status: 409 })
     }
 
-    // Vérifier nombre de joueurs max (12)
+    // Vérifier si déjà dans la partie
+    const { count: alreadyIn } = await supabase
+      .from('game_players')
+      .select('*', { count: 'exact', head: true })
+      .eq('game_id', game.id)
+      .eq('user_id', user.id)
+
+    if ((alreadyIn ?? 0) > 0) {
+      return NextResponse.json({ ok: true })
+    }
+
+    // Vérifier nombre de joueurs max
     const { count } = await supabase
       .from('game_players')
       .select('*', { count: 'exact', head: true })
@@ -40,13 +51,9 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Partie complète (max 7 joueurs)' }, { status: 409 })
     }
 
-    // Upsert pour éviter les doublons
-    await supabase.from('game_players').upsert(
-      { game_id: game.id, user_id: user.id },
-      { onConflict: 'game_id,user_id' }
-    )
-
-    return NextResponse.json({ ok: true })
+    // Ne PAS insérer — le joueur sera redirigé vers le lobby qui gère l'approbation
+    // Retourner ok pour que le frontend redirige vers /lobby/{code}
+    return NextResponse.json({ ok: true, needsApproval: true })
   } catch (err) {
     console.error('Error joining game:', err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })

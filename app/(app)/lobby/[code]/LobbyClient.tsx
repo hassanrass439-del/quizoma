@@ -3,13 +3,19 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Copy, Check, Share2, ArrowLeft } from 'lucide-react'
+import { Copy, Check, Share2, ArrowLeft, UserCheck, UserX } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { avatarUrl, getAvatar } from '@/lib/avatars'
-import { useVoiceChat } from '@/hooks/useVoiceChat'
+import { useVoice } from '@/contexts/VoiceContext'
 import { VoiceBar } from '@/components/game/VoiceBar'
 import Image from 'next/image'
 import type { Profile } from '@/types/game.types'
+
+interface PendingPlayer {
+  user_id: string
+  pseudo: string
+  avatar_id: string
+}
 
 interface Props {
   code: string
@@ -17,38 +23,42 @@ interface Props {
   hostId: string
   currentUserId: string
   initialPlayers: Profile[]
+  isInGame: boolean
 }
 
-export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayers }: Props) {
+export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayers, isInGame }: Props) {
   const router = useRouter()
   const [players, setPlayers] = useState<Profile[]>(initialPlayers)
+  const [pendingPlayers, setPendingPlayers] = useState<PendingPlayer[]>([])
   const [isStarting, setIsStarting] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [joinStatus, setJoinStatus] = useState<'in' | 'pending' | 'rejected'>(isInGame ? 'in' : 'pending')
 
   const isHost = currentUserId === hostId
   const gameUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/lobby/${code}`
-  const voice = useVoiceChat(`lobby-${code}`)
+  const voice = useVoice()
+  const voiceChannel = `voice-${code}`
 
-  async function copyCode() {
-    try {
-      await navigator.clipboard.writeText(code)
-      setCopied(true)
-      toast.success('Code copié !')
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      toast.error('Impossible de copier')
+  // Non-hôte : envoyer une demande de join (retry toutes les 3s tant que pending)
+  useEffect(() => {
+    if (isHost || isInGame) return
+    if (joinStatus !== 'pending') return
+
+    function sendRequest() {
+      fetch(`/api/game/${code}/request-join`, { method: 'POST' })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.already_in) setJoinStatus('in')
+        })
+        .catch(() => {})
     }
-  }
 
-  async function shareLink() {
-    if (navigator.share) {
-      await navigator.share({ title: 'Rejoins Quizoma !', url: gameUrl })
-    } else {
-      await navigator.clipboard.writeText(gameUrl)
-      toast.success('Lien copié !')
-    }
-  }
+    sendRequest()
+    const interval = setInterval(sendRequest, 3000)
+    return () => clearInterval(interval)
+  }, [code, isHost, isInGame, joinStatus])
 
+  // Écouter les broadcasts
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase.channel(`game:${code}`)
@@ -56,8 +66,35 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
       .on('broadcast', { event: 'GAME_STATE_CHANGE' }, ({ payload }) => {
         if (payload.status !== 'lobby') router.push(`/play/${code}`)
       })
+      .on('broadcast', { event: 'JOIN_REQUEST' }, ({ payload }) => {
+        if (!isHost) return
+        const p = payload as PendingPlayer
+        setPendingPlayers((prev) => {
+          if (prev.some((pp) => pp.user_id === p.user_id)) return prev
+          return [...prev, p]
+        })
+      })
+      .on('broadcast', { event: 'JOIN_ACCEPTED' }, ({ payload }) => {
+        const p = payload as { user_id: string }
+        // Retirer des pending
+        setPendingPlayers((prev) => prev.filter((pp) => pp.user_id !== p.user_id))
+        // Si c'est moi qui suis accepté
+        if (p.user_id === currentUserId) {
+          setJoinStatus('in')
+          toast.success('Tu as été accepté !')
+        }
+      })
+      .on('broadcast', { event: 'JOIN_REJECTED' }, ({ payload }) => {
+        const p = payload as { user_id: string }
+        setPendingPlayers((prev) => prev.filter((pp) => pp.user_id !== p.user_id))
+        if (p.user_id === currentUserId) {
+          setJoinStatus('rejected')
+          toast.error('L\'hôte a refusé ta demande')
+        }
+      })
       .subscribe()
 
+    // Polling joueurs acceptés
     const interval = setInterval(async () => {
       const { data } = await supabase
         .from('game_players')
@@ -75,10 +112,70 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
       supabase.removeChannel(channel)
       clearInterval(interval)
     }
-  }, [code, gameId, router])
+  }, [code, gameId, router, isHost, currentUserId])
+
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      toast.success('Code copié !')
+      setTimeout(() => setCopied(false), 2000)
+    } catch { toast.error('Impossible de copier') }
+  }
+
+  async function shareLink() {
+    if (navigator.share) {
+      await navigator.share({ title: 'Rejoins Quizoma !', url: gameUrl })
+    } else {
+      await navigator.clipboard.writeText(gameUrl)
+      toast.success('Lien copié !')
+    }
+  }
+
+  async function refreshPlayers() {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('game_players')
+      .select('user_id, profiles(*)')
+      .eq('game_id', gameId)
+    if (data) {
+      const profiles = data
+        .map((p) => (Array.isArray(p.profiles) ? p.profiles[0] : p.profiles))
+        .filter(Boolean) as Profile[]
+      setPlayers(profiles)
+    }
+  }
+
+  async function acceptPlayer(userId: string) {
+    const res = await fetch(`/api/game/${code}/accept-player`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId }),
+    })
+    if (res.ok) {
+      setPendingPlayers((prev) => prev.filter((p) => p.user_id !== userId))
+      toast.success('Joueur accepté')
+      await refreshPlayers()
+    } else {
+      const data = await res.json()
+      toast.error(data.error || 'Erreur')
+    }
+  }
+
+  async function rejectPlayer(userId: string) {
+    const res = await fetch(`/api/game/${code}/reject-player`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId }),
+    })
+    if (res.ok) {
+      setPendingPlayers((prev) => prev.filter((p) => p.user_id !== userId))
+      toast('Joueur refusé')
+    }
+  }
 
   async function handleStart() {
-    if (players.length < 2) { toast.error('Il faut au moins 2 joueurs pour démarrer'); return }
+    if (players.length < 2) { toast.error('Il faut au moins 2 joueurs'); return }
     setIsStarting(true)
     try {
       const res = await fetch(`/api/game/${code}/start`, { method: 'POST' })
@@ -88,6 +185,40 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
       toast.error(err instanceof Error ? err.message : 'Erreur')
       setIsStarting(false)
     }
+  }
+
+  // Joueur refusé
+  if (joinStatus === 'rejected') {
+    return (
+      <div className="min-h-full bg-[#12121f] flex flex-col items-center justify-center px-6 gap-4">
+        <span className="text-4xl">🚫</span>
+        <p className="text-[#e3e0f4] font-bold text-xl font-headline text-center">Demande refusée</p>
+        <p className="text-[#938ea2] text-sm text-center">L&apos;hôte n&apos;a pas accepté ta demande</p>
+        <button
+          onClick={() => router.push('/dashboard')}
+          className="mt-4 px-6 py-3 bg-[#1e1e2c] border border-[#484456] rounded-xl text-[#e3e0f4] font-bold text-sm"
+        >
+          Retour au dashboard
+        </button>
+      </div>
+    )
+  }
+
+  // Joueur en attente d'approbation
+  if (!isHost && joinStatus === 'pending') {
+    return (
+      <div className="min-h-full bg-[#12121f] flex flex-col items-center justify-center px-6 gap-4">
+        <div className="w-12 h-12 border-2 border-[#6c3ff5] border-t-transparent rounded-full animate-spin" />
+        <p className="text-[#e3e0f4] font-bold text-xl font-headline text-center">En attente d&apos;approbation</p>
+        <p className="text-[#938ea2] text-sm text-center">L&apos;hôte doit accepter ta demande pour rejoindre la partie</p>
+        <button
+          onClick={() => router.push('/dashboard')}
+          className="mt-4 px-6 py-3 bg-[#1e1e2c] border border-[#484456] rounded-xl text-[#938ea2] font-bold text-sm"
+        >
+          Annuler
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -106,7 +237,7 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
           isMuted={voice.isMuted}
           remoteUsersCount={voice.remoteUsers.length}
           onToggleMute={voice.toggleMute}
-          onJoin={voice.join}
+          onJoin={() => voice.join(voiceChannel)}
           onLeave={voice.leave}
         />
       </header>
@@ -117,14 +248,12 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
         <section className="relative">
           <div className="absolute inset-0 bg-[#6c3ff5]/10 blur-3xl -z-10 rounded-full scale-75" />
           <div className="bg-surface-3 rounded-[18px] p-8 border border-[#484456]/20 text-center shadow-[0_20px_50px_rgba(0,0,0,0.3)] relative overflow-hidden">
-            {/* notch */}
             <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#12121f] rounded-full" />
             <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#12121f] rounded-full" />
             <span className="text-[11px] font-extrabold text-[#6c3ff5] tracking-[0.3em] uppercase mb-3 block">PARTAGE CE CODE</span>
             <div className="font-headline font-black text-5xl text-text tracking-widest mb-4" style={{ textShadow: '0 0 20px rgba(108,63,245,0.6)' }}>
               {code}
             </div>
-            {/* QR Code */}
             <div className="flex justify-center mb-2">
               <div className="bg-white rounded-xl p-2">
                 <Image
@@ -143,23 +272,56 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
 
         {/* Share row */}
         <section className="flex gap-4">
-          <button
-            onClick={copyCode}
-            className="flex-1 flex items-center justify-center gap-2 py-4 px-2 rounded-xl border border-[#484456] text-text font-bold text-sm hover:bg-surface-2 transition-all active:scale-95"
-          >
+          <button onClick={copyCode} className="flex-1 flex items-center justify-center gap-2 py-4 px-2 rounded-xl border border-[#484456] text-text font-bold text-sm hover:bg-surface-2 transition-all active:scale-95">
             {copied ? <Check size={18} className="text-[#45dfa4]" /> : <Copy size={18} />}
             {copied ? 'Copié !' : 'Copier'}
           </button>
-          <button
-            onClick={shareLink}
-            className="flex-1 flex items-center justify-center gap-2 py-4 px-2 rounded-xl bg-[#ffb59d] text-[#390c00] font-black text-sm hover:brightness-110 shadow-lg shadow-[#ffb59d]/20 transition-all active:scale-95"
-          >
+          <button onClick={shareLink} className="flex-1 flex items-center justify-center gap-2 py-4 px-2 rounded-xl bg-[#ffb59d] text-[#390c00] font-black text-sm hover:brightness-110 shadow-lg shadow-[#ffb59d]/20 transition-all active:scale-95">
             <Share2 size={18} />
             Partager
           </button>
         </section>
 
-        {/* Players */}
+        {/* Pending requests — host only */}
+        {isHost && pendingPlayers.length > 0 && (
+          <section className="space-y-3">
+            <h3 className="font-headline font-extrabold text-sm text-[#ffb59d] uppercase tracking-wider">
+              Demandes en attente ({pendingPlayers.length})
+            </h3>
+            {pendingPlayers.map((p) => {
+              const av = getAvatar(p.avatar_id)
+              return (
+                <div key={p.user_id} className="flex items-center gap-3 bg-[#b83900]/10 border border-[#b83900]/20 rounded-xl px-4 py-3">
+                  <div className="w-10 h-10 rounded-full overflow-hidden border border-[#484456]">
+                    <Image
+                      src={avatarUrl(av.seed, av.bg, 40)}
+                      alt={p.pseudo}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <span className="flex-1 text-[#e3e0f4] font-bold text-sm">{p.pseudo}</span>
+                  <button
+                    onClick={() => acceptPlayer(p.user_id)}
+                    className="w-9 h-9 rounded-lg bg-[#007551]/30 flex items-center justify-center text-[#45dfa4] hover:bg-[#007551]/50 transition-colors active:scale-95"
+                  >
+                    <UserCheck size={18} />
+                  </button>
+                  <button
+                    onClick={() => rejectPlayer(p.user_id)}
+                    className="w-9 h-9 rounded-lg bg-[#93000a]/30 flex items-center justify-center text-[#ffb4ab] hover:bg-[#93000a]/50 transition-colors active:scale-95"
+                  >
+                    <UserX size={18} />
+                  </button>
+                </div>
+              )
+            })}
+          </section>
+        )}
+
+        {/* Players accepted */}
         <section className="space-y-6">
           <div className="flex justify-between items-end">
             <h3 className="font-headline font-extrabold text-lg text-text">Joueurs ({players.length}/7)</h3>
@@ -174,7 +336,7 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
           </div>
 
           <div className="grid grid-cols-4 gap-y-8 gap-x-4">
-            {players.map((player, i) => {
+            {players.map((player) => {
               const av = getAvatar(player.avatar_id)
               const isPlayerHost = player.id === hostId
               return (
@@ -199,7 +361,6 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
                 </div>
               )
             })}
-            {/* Empty slots */}
             {Array.from({ length: Math.max(0, 4 - players.length) }).map((_, i) => (
               <div key={`empty-${i}`} className="flex flex-col items-center gap-2 opacity-40">
                 <div className="w-[60px] h-[60px] rounded-full border-2 border-dashed border-[#484456] flex items-center justify-center">
@@ -219,9 +380,9 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
               disabled={isStarting || players.length < 2}
               className="w-full h-[56px] rounded-xl bg-gradient-to-r from-[#6c3ff5] to-[#cbbeff] flex items-center justify-center gap-2 text-[#1e0060] font-headline font-black text-lg shadow-xl shadow-[#6c3ff5]/20 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              🚀 {isStarting ? 'Démarrage…' : `Lancer la partie (${players.length} joueurs)`}
+              {isStarting ? 'Démarrage…' : `Lancer la partie (${players.length} joueurs)`}
             </button>
-            <p className="text-center text-[11px] text-text-muted/60 font-medium">La partie peut commencer avec 2 joueurs minimum</p>
+            <p className="text-center text-[11px] text-text-muted/60 font-medium">Minimum 2 joueurs pour commencer</p>
           </section>
         ) : (
           <div className="bg-surface-2 border border-[#484456]/30 rounded-xl px-4 py-4 text-center">

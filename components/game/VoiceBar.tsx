@@ -1,7 +1,7 @@
 'use client'
 
 import { Mic, MicOff, Phone, PhoneOff } from 'lucide-react'
-import type { VoiceStatus } from '@/hooks/useVoiceChat'
+import type { VoiceStatus } from '@/contexts/VoiceContext'
 
 interface Props {
   status: VoiceStatus

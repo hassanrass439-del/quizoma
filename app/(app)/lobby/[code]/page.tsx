@@ -25,26 +25,18 @@ export default async function LobbyPage({ params }: Props) {
     redirect(`/play/${code}`)
   }
 
-  // Rejoindre automatiquement la partie si pas encore inscrit
+  // Vérifier si le joueur est déjà dans la partie
   const { count: alreadyIn } = await supabase
     .from('game_players')
     .select('*', { count: 'exact', head: true })
     .eq('game_id', game.id)
     .eq('user_id', user.id)
 
-  if (!alreadyIn) {
-    const { count: playerCount } = await supabase
-      .from('game_players')
-      .select('*', { count: 'exact', head: true })
-      .eq('game_id', game.id)
+  const isHost = game.host_id === user.id
+  const isInGame = (alreadyIn ?? 0) > 0
 
-    if ((playerCount ?? 0) < 7) {
-      await supabase.from('game_players').upsert(
-        { game_id: game.id, user_id: user.id },
-        { onConflict: 'game_id,user_id' }
-      )
-    }
-  }
+  // L'hôte est toujours dans la partie (ajouté à la création)
+  // Les autres doivent être acceptés par l'hôte
 
   const { data: players } = await supabase
     .from('game_players')
@@ -62,6 +54,7 @@ export default async function LobbyPage({ params }: Props) {
       hostId={game.host_id}
       currentUserId={user.id}
       initialPlayers={profiles as Parameters<typeof LobbyClient>[0]['initialPlayers']}
+      isInGame={isInGame}
     />
   )
 }

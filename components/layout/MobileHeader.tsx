@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 interface Props {
-  title: string
+  title: React.ReactNode
   backHref?: string
   actions?: React.ReactNode
 }

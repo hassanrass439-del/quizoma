@@ -105,13 +105,29 @@ async function triggerVotePhase(supabase: any, gameId: string, code: string, que
     .select('id, bluff_text, player_id')
     .eq('question_id', question.id)
 
-  // Construire les réponses (vraie + bluffs) mélangées
-  const allAnswers = [
-    { id: 'correct', text: question.vraie_reponse, player_id: null },
-    ...(bluffs ?? []).map((b: { id: string; bluff_text: string; player_id: string }) => ({
-      id: b.id,
-      text: b.bluff_text,
-      player_id: b.player_id,
+  // Construire les réponses, dédupliquer par texte, garder tous les player_ids
+  const correctText = question.vraie_reponse.trim().toLowerCase()
+  const grouped = new Map<string, { id: string; text: string; player_ids: string[] }>()
+
+  for (const b of (bluffs ?? []) as Array<{ id: string; bluff_text: string; player_id: string }>) {
+    const key = b.bluff_text.trim().toLowerCase()
+    if (key === correctText) continue // skip si identique à la vraie réponse
+    const existing = grouped.get(key)
+    if (existing) {
+      existing.player_ids.push(b.player_id)
+    } else {
+      grouped.set(key, { id: b.id, text: b.bluff_text, player_ids: [b.player_id] })
+    }
+  }
+
+  const allAnswers: Array<{ id: string; text: string; player_id: string | null; player_ids: string[] }> = [
+    { id: 'correct', text: question.vraie_reponse, player_id: null, player_ids: [] },
+    ...[...grouped.values()].map((g) => ({
+      id: g.id,
+      text: g.text,
+      // Si un seul auteur → filtrer pour lui. Si plusieurs auteurs → bluff anonyme, personne ne le filtre.
+      player_id: g.player_ids.length === 1 ? g.player_ids[0] : null,
+      player_ids: g.player_ids.length === 1 ? g.player_ids : [],
     })),
   ]
 
@@ -123,12 +139,6 @@ async function triggerVotePhase(supabase: any, gameId: string, code: string, que
     ;[allAnswers[i], allAnswers[j]] = [allAnswers[j], allAnswers[i]]
   }
 
-  console.log('[triggerVotePhase] gameId:', gameId)
-  const { data: gameCheck, error: checkErr } = await supabase.from('games').select('id, status').eq('id', gameId).single()
-  console.log('[triggerVotePhase] gameCheck:', gameCheck, '| checkErr:', checkErr)
-
-  const { data: updateData, error: updateErr } = await supabase.from('games').update({ status: 'voting' }).eq('id', gameId).select('id, status')
-  console.log('[triggerVotePhase] games update error:', updateErr)
-  console.log('[triggerVotePhase] rows updated:', updateData)
+  await supabase.from('games').update({ status: 'voting' }).eq('id', gameId)
   await serverBroadcast(`game:${code}`, 'START_VOTE', { answers: allAnswers })
 }

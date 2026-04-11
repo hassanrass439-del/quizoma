@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { MobileHeader } from '@/components/layout/MobileHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RotateCcw, Home, BookMarked, X } from 'lucide-react'
+import { RotateCcw, Home, BookMarked, X, RefreshCw, Trophy } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Profile, Question } from '@/types/game.types'
 
@@ -50,7 +50,10 @@ export function ResultsClient({ code, gameId, ranking, questions, isHost, hasSou
 
   return (
     <div className="flex flex-col min-h-full">
-      <MobileHeader title="Podium final 🏆" />
+      <MobileHeader
+        title={<span className="flex items-center gap-2"><Trophy size={18} className="text-[#ffb59d]" /> Podium final</span>}
+        actions={<img src="/logo.png" alt="Quizoma" className="w-8 h-8 rounded-lg" />}
+      />
 
       <div className="flex-1 px-4 py-5 space-y-6">
         <Suspense
@@ -72,7 +75,7 @@ export function ResultsClient({ code, gameId, ranking, questions, isHost, hasSou
               onClick={() => router.push(`/create?reuse=${code}`)}
               className="w-full flex items-center gap-4 bg-[#6c3ff5]/10 border border-[#6c3ff5]/30 rounded-xl p-4 text-left hover:bg-[#6c3ff5]/20 transition-all active:scale-[0.98]"
             >
-              <span className="text-2xl">🔄</span>
+              <RefreshCw size={22} className="text-[#cbbeff]" />
               <div className="flex-1">
                 <p className="text-text font-bold text-sm">Continuer avec un autre axe</p>
                 <p className="text-text-muted text-xs">Rejouer sur un autre chapitre du même cours</p>
@@ -86,12 +89,11 @@ export function ResultsClient({ code, gameId, ranking, questions, isHost, hasSou
               onClick={() => setSaveState('form')}
               className="w-full flex items-center gap-4 bg-surface-2 border border-game-border rounded-xl p-4 text-left hover:bg-surface-3 transition-all active:scale-[0.98]"
             >
-              <span className="text-2xl">💾</span>
+              <BookMarked size={22} className="text-[#cbbeff]" />
               <div className="flex-1">
                 <p className="text-text font-bold text-sm">Enregistrer dans ma bibliothèque</p>
                 <p className="text-text-muted text-xs">Rejouer ce quiz plus tard sans re-uploader</p>
               </div>
-              <BookMarked size={18} className="text-text-muted" />
             </button>
           )}
 
