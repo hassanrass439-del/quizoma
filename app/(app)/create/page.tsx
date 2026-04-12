@@ -109,7 +109,7 @@ function CreatePageInner() {
       }
 
       // Étape 2 : OCR si nécessaire (appel IA dédié, retry côté client)
-      if (data.needsOCR) {
+      if (needsOCR) {
         setProcessingStep('Scan détecté, lecture par IA...')
 
         // Vérifier la taille (Vercel Edge body limit)
@@ -158,7 +158,7 @@ function CreatePageInner() {
       setWordCount(wc)
 
       // Étape 3 : extraction axes si mode bluff (appel IA dédié)
-      if (data.needsAxes || (data.needsOCR && mode === 'bluff')) {
+      if (needsAxes || (needsOCR && mode === 'bluff')) {
         setProcessingStep('Détection des axes du cours...')
         try {
           const axesRes = await fetch('/api/ai/axes', {
@@ -177,9 +177,9 @@ function CreatePageInner() {
       }
 
       // Mode QCM ou pas d'axes : utiliser les chapters du parse initial
-      if (data.chapters && data.chapters.length > 0 && !data.needsOCR) {
-        setChapters(data.chapters)
-        setSelectedChapters([data.chapters[0].title])
+      if (chapters.length > 0 && !needsOCR) {
+        setChapters(chapters)
+        setSelectedChapters([chapters[0].title])
         setStep(3)
       } else {
         // Mode QCM après OCR : re-détecter les thèmes dans le texte OCR
