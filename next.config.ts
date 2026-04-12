@@ -43,6 +43,13 @@ const nextConfig: NextConfig = {
 
   // Réduire le bundle en externalisant les modules lourds côté serveur
   serverExternalPackages: ['pdf-parse', 'mammoth'],
+
+  // Augmenter la limite body pour les uploads PDF
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
 }
 
 export default nextConfig

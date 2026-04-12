@@ -11,15 +11,34 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const bytes = new Uint8Array(arrayBuffer)
 
-    // Encode base64 par chunks pour éviter stack overflow sur Edge
-    let base64 = ''
-    const chunkSize = 32768
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.subarray(i, i + chunkSize)
-      base64 += String.fromCharCode(...chunk)
-    }
-    base64 = btoa(base64)
+    // Upload vers Gemini Files API d'abord
+    const uploadRes = await fetch(
+      `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': file.type || 'application/pdf',
+          'X-Goog-Upload-Protocol': 'raw',
+          'X-Goog-Upload-Command': 'upload, finalize',
+          'X-Goog-Upload-Header-Content-Type': file.type || 'application/pdf',
+        },
+        body: bytes,
+      }
+    )
 
+    if (!uploadRes.ok) {
+      const errText = await uploadRes.text()
+      console.error('[OCR] Upload error:', uploadRes.status, errText.slice(0, 200))
+      return NextResponse.json({ error: 'Erreur upload fichier' }, { status: 500 })
+    }
+
+    const uploadData = await uploadRes.json()
+    const fileUri = uploadData.file?.uri
+    if (!fileUri) {
+      return NextResponse.json({ error: 'Upload échoué' }, { status: 500 })
+    }
+
+    // Appeler Gemini avec le fileUri (pas de base64)
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
@@ -29,7 +48,7 @@ export async function POST(req: NextRequest) {
           contents: [{
             role: 'user',
             parts: [
-              { inlineData: { mimeType: 'application/pdf', data: base64 } },
+              { fileData: { mimeType: file.type || 'application/pdf', fileUri } },
               { text: 'Extrais tout le texte de ce document PDF de manière fidèle et complète. Conserve exactement la structure : numérotation des questions, propositions A/B/C/D/E, cas cliniques, tableaux. Ne résume rien, ne reformule rien, ne commente rien. Renvoie UNIQUEMENT le texte brut extrait, ligne par ligne.' },
             ],
           }],
@@ -40,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const errText = await res.text()
-      console.error('[OCR Edge] Gemini error:', res.status, errText.slice(0, 300))
+      console.error('[OCR] Gemini error:', res.status, errText.slice(0, 300))
       return NextResponse.json({ error: `Erreur OCR: ${res.status}` }, { status: 500 })
     }
 
@@ -48,7 +67,7 @@ export async function POST(req: NextRequest) {
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
     return NextResponse.json({ text })
   } catch (err) {
-    console.error('[OCR Edge] error:', err)
-    return NextResponse.json({ error: 'Erreur OCR interne' }, { status: 500 })
+    console.error('[OCR] error:', err)
+    return NextResponse.json({ error: 'Erreur OCR' }, { status: 500 })
   }
 }

@@ -77,25 +77,44 @@ function CreatePageInner() {
     setIsProcessing(true)
     fileRef.current = file
     try {
-      // Étape 1 : extraction texte (rapide, pas d'IA)
-      setProcessingStep('Extraction du texte...')
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('mode', mode)
-      const res = await fetch('/api/ai/parse-document', { method: 'POST', body: formData })
-      if (!res.ok) throw new Error(await res.text())
-      const data = await res.json()
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Fichier trop volumineux (max 10 Mo)')
+        return
+      }
 
-      let text = data.text as string
-      let wc = data.wordCount as number
+      let text = ''
+      let wc = 0
+      let needsOCR = false
+      let needsAxes = false
+      let chapters: Array<{ title: string; startIndex: number; endIndex: number }> = []
+
+      // Si fichier > 4MB (limite Vercel body), aller directement en OCR
+      if (file.size > 4 * 1024 * 1024) {
+        needsOCR = true
+      } else {
+        // Étape 1 : extraction texte (rapide, pas d'IA)
+        setProcessingStep('Extraction du texte...')
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('mode', mode)
+        const res = await fetch('/api/ai/parse-document', { method: 'POST', body: formData })
+        if (!res.ok) throw new Error('Erreur extraction')
+        const data = await res.json()
+
+        text = data.text as string
+        wc = data.wordCount as number
+        needsOCR = data.needsOCR ?? false
+        needsAxes = data.needsAxes ?? false
+        chapters = data.chapters ?? []
+      }
 
       // Étape 2 : OCR si nécessaire (appel IA dédié, retry côté client)
       if (data.needsOCR) {
         setProcessingStep('Scan détecté, lecture par IA...')
 
-        // Vérifier la taille du fichier (Edge limit ~4MB)
-        if (file.size > 4 * 1024 * 1024) {
-          toast.error('Le PDF est trop volumineux pour l\'OCR (max 4 Mo). Essaie de coller le texte manuellement.')
+        // Vérifier la taille (Vercel Edge body limit)
+        if (file.size > 8 * 1024 * 1024) {
+          toast.error('Le PDF est trop volumineux (max 8 Mo). Essaie de coller le texte manuellement.')
           return
         }
 
