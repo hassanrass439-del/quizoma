@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
     // ── Cache miss : générer les questions ──
     if (!cacheHit) {
       if (mode === 'bluff') {
-        // Mode bluff : retourner les chunks au client pour génération via Edge
+        // Retourner le code immédiatement, générer en arrière-plan via le client
         const chunks = chunkText(cleanedText, { size: 500, overlap: 50 })
         return NextResponse.json({
           code,

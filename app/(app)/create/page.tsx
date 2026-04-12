@@ -215,15 +215,14 @@ function CreatePageInner() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
 
-      // Mode bluff cache miss : générer les questions côté client via Edge
+      // Mode bluff cache miss : générer les questions via Edge (pas de timeout)
       if (data.needsGeneration && data.chunks) {
-        setProcessingStep('Génération des questions par l\'IA...')
+        setProcessingStep('L\'IA génère vos questions...')
         const allQuestions: Array<{ question: string; vraie_reponse: string; synonymes: string[]; explication: string }> = []
         const seenAnswers = new Set<string>()
 
         for (let i = 0; i < data.chunks.length; i++) {
           if (allQuestions.length >= data.nbQuestions) break
-          setProcessingStep(`Génération... (${allQuestions.length}/${data.nbQuestions} questions)`)
           try {
             const chunkRes = await fetch('/api/ai/generate-chunk', {
               method: 'POST',
@@ -244,7 +243,6 @@ function CreatePageInner() {
 
         // Envoyer les questions au serveur
         if (allQuestions.length > 0) {
-          setProcessingStep('Sauvegarde des questions...')
           await fetch(`/api/game/${data.code}/add-questions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
