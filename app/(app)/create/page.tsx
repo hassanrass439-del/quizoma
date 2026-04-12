@@ -92,9 +92,17 @@ function CreatePageInner() {
       // Étape 2 : OCR si nécessaire (appel IA dédié, retry côté client)
       if (data.needsOCR) {
         setProcessingStep('Scan détecté, lecture par IA...')
+
+        // Vérifier la taille du fichier (Edge limit ~4MB)
+        if (file.size > 4 * 1024 * 1024) {
+          toast.error('Le PDF est trop volumineux pour l\'OCR (max 4 Mo). Essaie de coller le texte manuellement.')
+          return
+        }
+
         const ocrForm = new FormData()
         ocrForm.append('file', file)
 
+        let ocrSuccess = false
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
             const ocrRes = await fetch('/api/ai/ocr', { method: 'POST', body: ocrForm })
@@ -102,20 +110,23 @@ function CreatePageInner() {
               const ocrData = await ocrRes.json()
               text = ocrData.text
               wc = text.split(/\s+/).filter(Boolean).length
+              ocrSuccess = true
               break
             }
-            // 503 → attendre et réessayer
-            if (ocrRes.status === 500 && attempt < 2) {
-              setProcessingStep(`IA surchargée, nouvel essai (${attempt + 2}/3)...`)
+            if (attempt < 2) {
+              setProcessingStep(`Nouvel essai (${attempt + 2}/3)...`)
               await new Promise((r) => setTimeout(r, 2000))
-              continue
             }
           } catch {
             if (attempt < 2) {
               await new Promise((r) => setTimeout(r, 2000))
-              continue
             }
           }
+        }
+
+        if (!ocrSuccess) {
+          toast.error('Impossible de lire ce PDF scanné. Colle le texte manuellement.')
+          return
         }
       }
 
