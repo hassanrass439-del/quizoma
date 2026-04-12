@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { UploadZone } from '@/components/upload/UploadZone'
 import { ChapterSelector } from '@/components/upload/ChapterSelector'
+import { AILoader } from '@/components/ui/AILoader'
 import { ArrowLeft, ArrowRight, ChevronRight, Check, FolderOpen, Sparkles, Drama, FileQuestion } from 'lucide-react'
 import type { Chapter } from '@/types/ai.types'
 import type { GameMode } from '@/types/game.types'
@@ -211,25 +212,60 @@ function CreatePageInner() {
           config: { nb_questions: nbQuestions, timer_seconds: timerSeconds },
         }),
       })
-      if (!res.ok) {
-        const { error } = await res.json()
-        throw new Error(error)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+
+      // Mode bluff cache miss : générer les questions côté client via Edge
+      if (data.needsGeneration && data.chunks) {
+        setProcessingStep('Génération des questions par l\'IA...')
+        const allQuestions: Array<{ question: string; vraie_reponse: string; synonymes: string[]; explication: string }> = []
+        const seenAnswers = new Set<string>()
+
+        for (let i = 0; i < data.chunks.length; i++) {
+          if (allQuestions.length >= data.nbQuestions) break
+          setProcessingStep(`Génération... (${allQuestions.length}/${data.nbQuestions} questions)`)
+          try {
+            const chunkRes = await fetch('/api/ai/generate-chunk', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chunk: data.chunks[i], count: data.nbQuestions - allQuestions.length }),
+            })
+            if (chunkRes.ok) {
+              const chunkData = await chunkRes.json()
+              for (const q of chunkData.questions ?? []) {
+                if (!seenAnswers.has(q.vraie_reponse?.toLowerCase())) {
+                  seenAnswers.add(q.vraie_reponse?.toLowerCase())
+                  allQuestions.push(q)
+                }
+              }
+            }
+          } catch { /* continue with next chunk */ }
+        }
+
+        // Envoyer les questions au serveur
+        if (allQuestions.length > 0) {
+          setProcessingStep('Sauvegarde des questions...')
+          await fetch(`/api/game/${data.code}/add-questions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ questions: allQuestions.slice(0, data.nbQuestions) }),
+          })
+        }
+        setProcessingStep('')
       }
-      const { code } = await res.json()
-      router.push(`/lobby/${code}`)
+
+      router.push(`/lobby/${data.code}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur lors de la création')
       setIsCreating(false)
+      setProcessingStep('')
     }
   }
 
   if (reuseLoading) {
     return (
       <div className="min-h-full bg-[#12121f] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-2 border-[#6c3ff5] border-t-transparent rounded-full animate-spin" />
-          <p className="text-text font-bold font-headline">Chargement du cours...</p>
-        </div>
+        <AILoader text="Chargement du cours..." subtext="Récupération des données" />
       </div>
     )
   }
@@ -425,7 +461,7 @@ function CreatePageInner() {
                 {isCreating ? (
                   <span className="flex items-center gap-2">
                     <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Génération en cours…
+                    {processingStep || 'Création en cours…'}
                   </span>
                 ) : '⚡ Générer et créer la partie'}
               </Button>

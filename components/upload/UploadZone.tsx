@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { Loader2, CloudUpload, Info, FileText, Upload, ClipboardPaste } from 'lucide-react'
+import { AILoader } from '@/components/ui/AILoader'
 import { useGoogleDrivePicker } from '@/hooks/useGoogleDrivePicker'
 
 interface Props {
@@ -36,10 +37,12 @@ export function UploadZone({ onFileSelect, onTextPaste, isProcessing, processing
 
   if (isProcessing) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 bg-surface-2 border border-[#484456]/30 rounded-[18px] p-8">
-        <Loader2 size={32} className="text-[#6c3ff5] animate-spin" />
-        <p className="text-text font-semibold font-headline">Extraction en cours…</p>
-        <p className="text-text-muted text-sm text-center">{processingStep || 'Analyse du document...'}</p>
+      <div className="bg-surface-2 border border-[#484456]/30 rounded-[18px] p-6">
+        <AILoader
+          text="Extraction en cours..."
+          subtext={processingStep || 'Analyse du document...'}
+          size={140}
+        />
       </div>
     )
   }

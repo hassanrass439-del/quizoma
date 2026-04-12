@@ -135,53 +135,15 @@ export async function POST(req: NextRequest) {
 
     // ── Cache miss : générer les questions ──
     if (!cacheHit) {
-      console.log('[create] CACHE MISS — generating questions with AI')
-
       if (mode === 'bluff') {
+        // Mode bluff : retourner les chunks au client pour génération via Edge
         const chunks = chunkText(cleanedText, { size: 500, overlap: 50 })
-        const allQuestions: Array<{ question: string; vraie_reponse: string; synonymes: string[]; explication: string }> = []
-        const existingTexts = new Set<string>()
-
-        // Plusieurs passes sur les chunks jusqu'à avoir assez de questions
-        let pass = 0
-        const maxPasses = 3
-        while (allQuestions.length < config.nb_questions && pass < maxPasses) {
-          for (const chunk of chunks) {
-            if (allQuestions.length >= config.nb_questions) break
-            try {
-              const remaining = config.nb_questions - allQuestions.length
-              const result = await generateQuestions(chunk, remaining)
-              // Dédupliquer les questions entre passes
-              for (const q of result.questions_generees) {
-                if (!existingTexts.has(q.vraie_reponse.toLowerCase())) {
-                  existingTexts.add(q.vraie_reponse.toLowerCase())
-                  allQuestions.push(q)
-                }
-              }
-            } catch (err) {
-              console.error('[create] chunk generation error:', err)
-            }
-          }
-          pass++
-          if (allQuestions.length < config.nb_questions) {
-            console.log(`[create] pass ${pass}: ${allQuestions.length}/${config.nb_questions} questions, retrying...`)
-          }
-        }
-
-        const finalQuestions = allQuestions.slice(0, config.nb_questions)
-        console.log('[create] inserting', finalQuestions.length, '/', config.nb_questions, 'questions')
-
-        const { error: qInsertErr } = await serviceSupabase.from('questions').insert(
-          finalQuestions.map((q, i) => ({
-            game_id: game.id,
-            index: i,
-            question_text: q.question,
-            vraie_reponse: q.vraie_reponse,
-            synonymes: q.synonymes,
-            explication: q.explication,
-          }))
-        )
-        if (qInsertErr) console.error('[create] questions insert error:', qInsertErr)
+        return NextResponse.json({
+          code,
+          needsGeneration: true,
+          chunks: chunks.slice(0, Math.ceil(config.nb_questions / 3) + 1),
+          nbQuestions: config.nb_questions,
+        })
       } else {
         // Mode Annales : découper en blocs QCM individuels
         const blocks = parseQCMBlocks(cleanedText)

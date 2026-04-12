@@ -12,6 +12,7 @@ import { VoteScreen } from '@/components/game/VoteScreen'
 import { RevealScreen } from '@/components/game/RevealScreen'
 import { avatarUrl, getAvatar } from '@/lib/avatars'
 import { useVoice } from '@/contexts/VoiceContext'
+import { AILoader } from '@/components/ui/AILoader'
 import { VoiceBar } from '@/components/game/VoiceBar'
 import Image from 'next/image'
 import { SkipForward } from 'lucide-react'
@@ -313,10 +314,7 @@ export function PlayClient({
         {((gameState.status === 'question' && !effectiveQuestionData) ||
           (gameState.status === 'voting' && !effectiveVotePayload) ||
           (gameState.status === 'reveal' && !effectiveRevealPayload)) && (
-          <div className="flex flex-col items-center justify-center flex-1 gap-4 pt-20 text-center">
-            <div className="w-10 h-10 border-2 border-[#6c3ff5] border-t-transparent rounded-full animate-spin" />
-            <p className="text-text font-bold font-headline">Reconnexion en cours…</p>
-          </div>
+          <AILoader text="Reconnexion en cours..." subtext="Récupération de l'état du jeu" size={120} />
         )}
 
         {/* Question phase */}

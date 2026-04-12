@@ -1,35 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { extractAxes } from '@/lib/ai/extractAxes'
+import { SYSTEM_PROMPT_AXES } from '@/lib/ai/prompts'
 
-export const maxDuration = 60
+export const runtime = 'edge'
 
-/**
- * Cherche la position d'un titre dans le texte de manière flexible.
- * Essaie plusieurs variantes : titre complet, sans numérotation, premiers mots...
- */
 function findTitlePosition(text: string, title: string): number {
   const lower = text.toLowerCase()
 
-  // 1. Essai exact
   let idx = lower.indexOf(title.toLowerCase())
   if (idx >= 0) return idx
 
-  // 2. Sans numérotation (I., II., 1., A., etc.)
   const withoutNum = title.replace(/^[IVX0-9]+\.\s*/i, '').trim()
   idx = lower.indexOf(withoutNum.toLowerCase())
   if (idx >= 0) return idx
 
-  // 3. Premier mot significatif (>5 chars) du titre
   const words = withoutNum.split(/\s+/).filter((w) => w.length > 4)
   if (words.length > 0) {
-    // Cherche le premier mot significatif suivi du contexte
-    const firstSignificant = words[0].toLowerCase()
-    idx = lower.indexOf(firstSignificant)
+    idx = lower.indexOf(words[0].toLowerCase())
     if (idx >= 0) return idx
   }
 
-  // 4. Essai avec les 2 premiers mots
   const twoWords = withoutNum.split(/\s+/).slice(0, 2).join(' ').toLowerCase()
   if (twoWords.length > 5) {
     idx = lower.indexOf(twoWords)
@@ -41,16 +30,40 @@ function findTitlePosition(text: string, title: string): number {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
-
     const { text } = await req.json()
     if (!text) return NextResponse.json({ error: 'Texte requis' }, { status: 400 })
 
-    const axes = await extractAxes(text)
+    const truncated = text.slice(0, 8000)
 
-    // Dédupliquer les axes (même titre de base → garder le premier)
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT_AXES }] },
+          contents: [{ role: 'user', parts: [{ text: truncated }] }],
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
+        }),
+      }
+    )
+
+    if (!res.ok) {
+      return NextResponse.json({ error: 'Erreur extraction axes' }, { status: 500 })
+    }
+
+    const data = await res.json()
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+
+    let axes: Array<{ id: number; titre: string }> = []
+    try {
+      const parsed = JSON.parse(raw)
+      axes = parsed.axes_principaux ?? []
+    } catch {
+      return NextResponse.json({ chapters: [] })
+    }
+
+    // Dédupliquer
     const seen = new Set<string>()
     const uniqueAxes = axes.filter((axe) => {
       const key = axe.titre.replace(/^[IVX0-9]+\.\s*/i, '').trim().toLowerCase().split(/\s*[:–\-—]\s*/)[0]
@@ -59,30 +72,20 @@ export async function POST(req: NextRequest) {
       return true
     })
 
-    // Trouver les positions dans le texte
+    // Positions
     const chapters = uniqueAxes.map((axe) => {
       const idx = findTitlePosition(text, axe.titre)
-      return {
-        title: axe.titre,
-        startIndex: idx >= 0 ? idx : 0,
-        endIndex: text.length,
-      }
+      return { title: axe.titre, startIndex: idx >= 0 ? idx : 0, endIndex: text.length }
     })
 
-    // Trier par startIndex pour être sûr de l'ordre
     chapters.sort((a, b) => a.startIndex - b.startIndex)
-
-    // Recalculer endIndex
     for (let i = 0; i < chapters.length - 1; i++) {
       chapters[i].endIndex = chapters[i + 1].startIndex
     }
 
-    // Filtrer les axes avec startIndex = 0 sauf le premier (probablement pas trouvés)
     const filtered = chapters.filter((c, i) => i === 0 || c.startIndex > 0)
-
     return NextResponse.json({ chapters: filtered })
-  } catch (err) {
-    console.error('[Axes route] error:', err)
+  } catch {
     return NextResponse.json({ error: 'Erreur extraction axes' }, { status: 500 })
   }
 }
