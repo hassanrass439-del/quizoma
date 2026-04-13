@@ -108,37 +108,66 @@ function CreatePageInner() {
         chapters = data.chapters ?? []
       }
 
-      // Étape 2 : OCR si nécessaire (appel IA dédié, retry côté client)
+      // Étape 2 : OCR si nécessaire — upload direct vers Gemini depuis le navigateur
       if (needsOCR) {
         setProcessingStep('Scan détecté, lecture par IA...')
 
-        // Vérifier la taille (Vercel Edge body limit)
-        if (file.size > 8 * 1024 * 1024) {
-          toast.error('Le PDF est trop volumineux (max 8 Mo). Essaie de coller le texte manuellement.')
+        if (file.size > 20 * 1024 * 1024) {
+          toast.error('Fichier trop volumineux (max 20 Mo)')
           return
         }
-
-        const ocrForm = new FormData()
-        ocrForm.append('file', file)
 
         let ocrSuccess = false
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
-            const ocrRes = await fetch('/api/ai/ocr', { method: 'POST', body: ocrForm })
-            if (ocrRes.ok) {
-              const ocrData = await ocrRes.json()
-              text = ocrData.text
-              wc = text.split(/\s+/).filter(Boolean).length
-              ocrSuccess = true
-              break
-            }
-            if (attempt < 2) {
-              setProcessingStep(`Nouvel essai (${attempt + 2}/3)...`)
-              await new Promise((r) => setTimeout(r, 2000))
-            }
+            // 1. Upload vers Gemini Files API directement depuis le navigateur
+            const uploadRes = await fetch(
+              `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${process.env.NEXT_PUBLIC_GEMINI_API_KEY}`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': file.type || 'application/pdf',
+                  'X-Goog-Upload-Protocol': 'raw',
+                  'X-Goog-Upload-Command': 'upload, finalize',
+                  'X-Goog-Upload-Header-Content-Type': file.type || 'application/pdf',
+                },
+                body: file,
+              }
+            )
+            if (!uploadRes.ok) throw new Error('Upload échoué')
+            const uploadData = await uploadRes.json()
+            const fileUri = uploadData.file?.uri
+            if (!fileUri) throw new Error('Pas de fileUri')
+
+            // 2. Appeler Gemini generateContent avec le fileUri
+            setProcessingStep('Extraction du texte...')
+            const genRes = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${process.env.NEXT_PUBLIC_GEMINI_API_KEY}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{
+                    role: 'user',
+                    parts: [
+                      { fileData: { mimeType: file.type || 'application/pdf', fileUri } },
+                      { text: 'Extrais tout le texte de ce document PDF. Conserve la structure : numérotation, propositions A/B/C/D/E, cas cliniques. Ne résume rien. Renvoie uniquement le texte brut.' },
+                    ],
+                  }],
+                  generationConfig: { temperature: 0.1, maxOutputTokens: 16000 },
+                }),
+              }
+            )
+            if (!genRes.ok) throw new Error(`Gemini ${genRes.status}`)
+            const genData = await genRes.json()
+            text = genData.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+            wc = text.split(/\s+/).filter(Boolean).length
+            ocrSuccess = true
+            break
           } catch {
             if (attempt < 2) {
-              await new Promise((r) => setTimeout(r, 2000))
+              setProcessingStep(`Nouvel essai (${attempt + 2}/3)...`)
+              await new Promise((r) => setTimeout(r, 3000))
             }
           }
         }

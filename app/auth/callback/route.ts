@@ -6,6 +6,9 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/dashboard'
 
+  // Utiliser l'URL publique (derrière Nginx, req.url peut contenir localhost)
+  const origin = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
+
   if (code) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
@@ -19,7 +22,6 @@ export async function GET(req: NextRequest) {
           .eq('id', user.id)
           .maybeSingle()
 
-        // Forcer onboarding si demandé ou si profil incomplet
         const needsOnboarding =
           next === '/onboarding' ||
           !profile ||
@@ -28,12 +30,12 @@ export async function GET(req: NextRequest) {
           !profile.avatar_id
 
         if (needsOnboarding) {
-          return NextResponse.redirect(new URL('/onboarding', req.url))
+          return NextResponse.redirect(`${origin}/onboarding`)
         }
       }
-      return NextResponse.redirect(new URL(next, req.url))
+      return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
-  return NextResponse.redirect(new URL('/login?error=oauth', req.url))
+  return NextResponse.redirect(`${origin}/login?error=oauth`)
 }
