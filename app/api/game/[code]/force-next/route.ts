@@ -141,11 +141,23 @@ export async function POST(req: NextRequest, { params }: Params) {
           scores[vote.voter_id] = (scores[vote.voter_id] ?? 0) + 2
         }
       }
+      // Grouper les bluffs par texte pour identifier les bluffs partagés
+      const bluffsByText = new Map<string, Array<{ id: string; player_id: string }>>()
       for (const bluff of bluffs ?? []) {
-        // +1 pt par vote reçu sur son bluff
+        const key = bluff.bluff_text.trim().toLowerCase()
+        if (!bluffsByText.has(key)) bluffsByText.set(key, [])
+        bluffsByText.get(key)!.push({ id: bluff.id, player_id: bluff.player_id })
+      }
+
+      for (const bluff of bluffs ?? []) {
         const votesForBluff = (votes ?? []).filter((v) => v.voted_for_bluff_id === bluff.id)
         if (votesForBluff.length > 0) {
-          scores[bluff.player_id] = (scores[bluff.player_id] ?? 0) + votesForBluff.length
+          // Donner les points à TOUS les auteurs du même texte
+          const key = bluff.bluff_text.trim().toLowerCase()
+          const allAuthors = bluffsByText.get(key) ?? [{ id: bluff.id, player_id: bluff.player_id }]
+          for (const author of allAuthors) {
+            scores[author.player_id] = (scores[author.player_id] ?? 0) + votesForBluff.length
+          }
         }
       }
 

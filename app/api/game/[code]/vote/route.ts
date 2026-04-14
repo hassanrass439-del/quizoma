@@ -131,11 +131,25 @@ async function triggerRevealPhase(supabase: any, gameId: string, code: string, q
     }
   }
 
+  // Grouper les bluffs par texte (insensible à la casse) pour identifier les bluffs partagés
+  const bluffsByText = new Map<string, Array<{ id: string; player_id: string }>>()
   for (const bluff of bluffs ?? []) {
-    // +1 pt par vote reçu sur son bluff
-    const votesForBluff = (votes ?? []).filter((v: { voted_for_bluff_id: string }) => v.voted_for_bluff_id === bluff.id)
+    const b = bluff as { id: string; bluff_text: string; player_id: string }
+    const key = b.bluff_text.trim().toLowerCase()
+    if (!bluffsByText.has(key)) bluffsByText.set(key, [])
+    bluffsByText.get(key)!.push({ id: b.id, player_id: b.player_id })
+  }
+
+  for (const bluff of bluffs ?? []) {
+    const b = bluff as { id: string; bluff_text: string; player_id: string }
+    const votesForBluff = (votes ?? []).filter((v: { voted_for_bluff_id: string }) => v.voted_for_bluff_id === b.id)
     if (votesForBluff.length > 0) {
-      scoreUpdates[bluff.player_id] = (scoreUpdates[bluff.player_id] ?? 0) + votesForBluff.length
+      // Donner les points à TOUS les auteurs du même texte
+      const key = b.bluff_text.trim().toLowerCase()
+      const allAuthors = bluffsByText.get(key) ?? [{ id: b.id, player_id: b.player_id }]
+      for (const author of allAuthors) {
+        scoreUpdates[author.player_id] = (scoreUpdates[author.player_id] ?? 0) + votesForBluff.length
+      }
     }
   }
 
