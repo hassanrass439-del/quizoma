@@ -1,8 +1,13 @@
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Zap, Users, Brain, BookOpen } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) redirect('/dashboard')
   const features = [
     { icon: Brain, title: 'IA générative', desc: 'Claude analyse tes cours et génère des questions précises' },
     { icon: Users, title: 'Multijoueur', desc: 'Joue avec tes amis en temps réel, jusqu\'à 12 joueurs' },
