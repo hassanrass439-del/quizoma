@@ -7,7 +7,7 @@ interface Props {
 
 export function QuestionCard({ questionText, questionIndex, totalQuestions, mode = 1 }: Props) {
   if (mode === 2) {
-    // Mode QCM annales : sépare le stem des propositions A–E
+    // Mode QCM : sépare l'énoncé (cas clinique + question) des propositions A–E
     const lines = questionText.split('\n').map((l) => l.trim()).filter(Boolean)
     const propRegex = /^([A-E])[.)]\s*(.*)/i
 
@@ -24,25 +24,36 @@ export function QuestionCard({ questionText, questionIndex, totalQuestions, mode
     }
 
     return (
-      <div className="w-full space-y-4">
-        {/* Stem */}
-        <p className="text-text text-base font-bold leading-relaxed text-left">
-          {stemLines.join(' ')}
-        </p>
-
-        {/* Propositions */}
-        {propositions.length > 0 && (
+      <div className="w-full max-h-[55vh] overflow-y-auto pr-1 custom-scrollbar">
+        <div className="space-y-4">
+          {/* Énoncé complet (cas clinique + question) */}
           <div className="space-y-2">
-            {propositions.map(({ letter, text }) => (
-              <div key={letter} className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[#6c3ff5]/20 border border-[#6c3ff5]/40 flex items-center justify-center text-[#cbbeff] font-black text-xs">
-                  {letter}
-                </span>
-                <span className="text-text text-sm leading-relaxed pt-0.5">{text}</span>
-              </div>
+            {stemLines.map((line, i) => (
+              <p key={i} className="text-[#e3e0f4] text-sm leading-relaxed text-left">
+                {line}
+              </p>
             ))}
           </div>
-        )}
+
+          {/* Séparateur */}
+          {propositions.length > 0 && (
+            <div className="h-px bg-[#484456]/40" />
+          )}
+
+          {/* Propositions */}
+          {propositions.length > 0 && (
+            <div className="space-y-2.5">
+              {propositions.map(({ letter, text }) => (
+                <div key={letter} className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[#6c3ff5]/20 border border-[#6c3ff5]/40 flex items-center justify-center text-[#cbbeff] font-black text-xs">
+                    {letter}
+                  </span>
+                  <span className="text-[#e3e0f4] text-sm leading-relaxed pt-0.5">{text}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     )
   }
