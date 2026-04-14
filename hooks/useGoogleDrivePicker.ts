@@ -76,10 +76,7 @@ export function useGoogleDrivePicker(onFilePicked: (file: File) => void) {
             fileName = name
           }
 
-          if (blob.size > MAX_SIZE) {
-            alert('Fichier trop volumineux (max 10 Mo)')
-            return
-          }
+          // Pas de limite — gros fichiers gérés via OCR
 
           onFilePickedRef.current(new File([blob], fileName, { type: fileType }))
         } catch {

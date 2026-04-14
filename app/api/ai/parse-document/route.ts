@@ -16,9 +16,7 @@ export async function POST(req: NextRequest) {
 
     if (!file) return NextResponse.json({ error: 'Aucun fichier' }, { status: 400 })
 
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Fichier trop volumineux (max 10 Mo)' }, { status: 413 })
-    }
+    // Pas de limite — les gros fichiers passent en OCR côté client
 
     const buffer = Buffer.from(await file.arrayBuffer())
     let rawText = ''
