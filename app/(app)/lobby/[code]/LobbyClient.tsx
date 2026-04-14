@@ -380,7 +380,16 @@ export function LobbyClient({ code, gameId, hostId, currentUserId, initialPlayer
               disabled={isStarting || players.length < 2}
               className="w-full h-[56px] rounded-xl bg-gradient-to-r from-[#6c3ff5] to-[#cbbeff] flex items-center justify-center gap-2 text-[#1e0060] font-headline font-black text-lg shadow-xl shadow-[#6c3ff5]/20 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isStarting ? 'Démarrage…' : `Lancer la partie (${players.length} joueurs)`}
+              {isStarting ? (
+                <span className="flex items-center gap-2">
+                  <span className="flex gap-1">
+                    <span className="w-2 h-2 bg-[#1e0060] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-[#1e0060] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-[#1e0060] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </span>
+                  Démarrage
+                </span>
+              ) : `Lancer la partie (${players.length} joueurs)`}
             </button>
             <p className="text-center text-[11px] text-text-muted/60 font-medium">Minimum 2 joueurs pour commencer</p>
           </section>

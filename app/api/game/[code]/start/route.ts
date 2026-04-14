@@ -40,27 +40,40 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Il faut au moins 2 joueurs' }, { status: 400 })
     }
 
-    // Récupérer la première question
-    let { data: firstQuestion } = await supabase
+    // Récupérer toutes les questions
+    const { data: allQuestions } = await supabase
       .from('questions')
       .select('*')
       .eq('game_id', game.id)
-      .eq('index', 0)
-      .single()
+      .order('index')
 
-    // Mode annales : résoudre la question avec l'IA si pas encore de réponse
-    if (firstQuestion && !firstQuestion.vraie_reponse) {
-      try {
-        const solved = await solveQCMQuestion(firstQuestion.question_text)
-        await supabase
-          .from('questions')
-          .update({ vraie_reponse: solved.vraie_combinaison, explication: solved.explications })
-          .eq('id', firstQuestion.id)
-        firstQuestion = { ...firstQuestion, vraie_reponse: solved.vraie_combinaison, explication: solved.explications }
-        console.log('[start] QCM solved:', solved.vraie_combinaison)
-      } catch (err) {
-        console.error('[start] QCM solve error:', err)
-      }
+    const firstQuestion = allQuestions?.[0] ?? null
+
+    // Mode annales : pré-résoudre TOUTES les questions non-résolues en parallèle
+    const unsolved = (allQuestions ?? []).filter((q) => !q.vraie_reponse)
+    if (unsolved.length > 0) {
+      console.log('[start] Solving', unsolved.length, 'QCM questions in parallel...')
+      const t0 = Date.now()
+      await Promise.all(
+        unsolved.map(async (q) => {
+          try {
+            const solved = await solveQCMQuestion(q.question_text)
+            await supabase
+              .from('questions')
+              .update({ vraie_reponse: solved.vraie_combinaison, explication: solved.explications })
+              .eq('id', q.id)
+            // Mettre à jour la première question en mémoire
+            if (q.id === firstQuestion?.id) {
+              firstQuestion.vraie_reponse = solved.vraie_combinaison
+              firstQuestion.explication = solved.explications
+            }
+            console.log('[start] QCM solved Q' + q.index + ':', solved.vraie_combinaison)
+          } catch (err) {
+            console.error('[start] QCM solve error Q' + q.index + ':', err)
+          }
+        })
+      )
+      console.log('[start] All QCM solved in', Date.now() - t0, 'ms')
     }
 
     // Mettre à jour le statut + stocker l'index courant dans config

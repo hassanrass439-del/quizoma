@@ -1,28 +1,34 @@
-import { createClient } from '@/lib/supabase/server'
-
 /**
- * Broadcast an event to a Supabase Realtime channel from the server.
- * Subscribes first (required), sends, then cleans up.
- * Includes a 5s timeout to avoid hanging if Realtime is slow.
+ * Broadcast an event via Supabase Realtime REST API.
+ * Beaucoup plus rapide que subscribe/send/unsubscribe (~100ms vs ~2-5s).
  */
 export async function serverBroadcast(
   channelName: string,
   event: string,
   payload: Record<string, unknown>
 ): Promise<void> {
-  const supabase = await createClient()
-  const channel = supabase.channel(channelName)
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-  await new Promise<void>((resolve) => {
-    const timeout = setTimeout(resolve, 5000)
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        clearTimeout(timeout)
-        resolve()
-      }
-    })
+  const res = await fetch(`${url}/realtime/v1/api/broadcast`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': anonKey,
+      'Authorization': `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify({
+      messages: [
+        {
+          topic: channelName,
+          event,
+          payload,
+        },
+      ],
+    }),
   })
 
-  await channel.send({ type: 'broadcast', event, payload })
-  await supabase.removeChannel(channel)
+  if (!res.ok) {
+    console.error('[broadcast] error:', res.status, await res.text().catch(() => ''))
+  }
 }
