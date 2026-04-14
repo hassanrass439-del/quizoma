@@ -47,12 +47,18 @@ export default async function ResultsPage({ params }: Props) {
   }
 
   // Compter le total de questions disponibles dans la source
-  let totalQuestionsInSource = config.nb_questions
-  if (game.mode === 'annales' && config.source_text) {
-    // Compter les questions QCM dans le texte source
-    const qcmMatches = config.source_text.match(/^\d+\.\s/gm)
-    if (qcmMatches) totalQuestionsInSource = qcmMatches.length
+  let totalQuestionsInSource = 0
+  if (config.source_text) {
+    if (game.mode === 'annales') {
+      const qcmMatches = config.source_text.match(/\d+\.\s+\S/gm)
+      totalQuestionsInSource = qcmMatches ? qcmMatches.length : 0
+    } else {
+      // Mode bluff : estimer ~1 question par 150 mots
+      totalQuestionsInSource = Math.floor(config.source_text.split(/\s+/).length / 150)
+    }
   }
+  // Au minimum le nb_questions configuré
+  if (totalQuestionsInSource < config.nb_questions) totalQuestionsInSource = config.nb_questions * 2
 
   // Questions déjà jouées
   const playedQuestionCount = config.played_question_indices?.length ?? config.nb_questions
