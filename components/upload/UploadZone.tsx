@@ -22,7 +22,7 @@ export function UploadZone({ onFileSelect, onTextPaste, isProcessing, processing
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 10 * 1024 * 1024) { alert('Fichier trop volumineux (max 10 Mo)'); return }
+    // Pas de limite stricte — les gros fichiers passent en OCR direct
     onFileSelect(file)
     e.target.value = ''
   }
@@ -96,7 +96,7 @@ export function UploadZone({ onFileSelect, onTextPaste, isProcessing, processing
           </div>
           <div className="flex-grow">
             <h3 className="font-bold text-text text-base">Fichier PDF ou Word</h3>
-            <p className="text-text-muted text-xs">Jusqu&apos;à 10 Mo · .pdf .docx .txt</p>
+            <p className="text-text-muted text-xs">.pdf .docx .txt</p>
           </div>
           <Upload size={20} className="text-[#cbbeff]" />
         </div>

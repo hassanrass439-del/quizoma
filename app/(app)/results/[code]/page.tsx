@@ -39,6 +39,24 @@ export default async function ResultsPage({ params }: Props) {
     rank: i + 1,
   }))
 
+  const config = game.config as {
+    source_text?: string
+    chapters?: Array<{ title: string; startIndex: number; endIndex: number }>
+    nb_questions: number
+    played_question_indices?: number[]
+  }
+
+  // Compter le total de questions disponibles dans la source
+  let totalQuestionsInSource = config.nb_questions
+  if (game.mode === 'annales' && config.source_text) {
+    // Compter les questions QCM dans le texte source
+    const qcmMatches = config.source_text.match(/^\d+\.\s/gm)
+    if (qcmMatches) totalQuestionsInSource = qcmMatches.length
+  }
+
+  // Questions déjà jouées
+  const playedQuestionCount = config.played_question_indices?.length ?? config.nb_questions
+
   return (
     <ResultsClient
       code={code}
@@ -47,6 +65,9 @@ export default async function ResultsPage({ params }: Props) {
       questions={(questions ?? []) as Parameters<typeof ResultsClient>[0]['questions']}
       isHost={game.host_id === user.id}
       hasSource={!!(game.config as { source_text?: string })?.source_text}
+      mode={game.mode as 'bluff' | 'annales'}
+      totalQuestionsInSource={totalQuestionsInSource}
+      playedQuestionCount={playedQuestionCount}
     />
   )
 }

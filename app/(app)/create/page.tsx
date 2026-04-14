@@ -27,6 +27,7 @@ function CreatePageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const reuseCode = searchParams.get('reuse')
+  const [playedIndices, setPlayedIndices] = useState<number[]>([])
   const [source, setSource] = useState<'choose' | 'new'>('choose')
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [mode, setMode] = useState<GameMode>('bluff')
@@ -51,6 +52,7 @@ function CreatePageInner() {
         setMode(data.mode as GameMode)
         setRawText(data.text)
         setWordCount(data.text.split(/\s+/).filter(Boolean).length)
+        if (data.playedIndices) setPlayedIndices(data.playedIndices)
         if (data.chapters && data.chapters.length > 0) {
           setChapters(data.chapters)
           setSelectedChapters([data.chapters[0].title])
@@ -77,10 +79,7 @@ function CreatePageInner() {
     setIsProcessing(true)
     fileRef.current = file
     try {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Fichier trop volumineux (max 10 Mo)')
-        return
-      }
+      // Pas de limite de taille — l'OCR gère via Gemini Files API
 
       let text = ''
       let wc = 0
@@ -89,7 +88,8 @@ function CreatePageInner() {
       let chapters: Array<{ title: string; startIndex: number; endIndex: number }> = []
 
       // Si fichier > 4MB (limite Vercel body), aller directement en OCR
-      if (file.size > 4 * 1024 * 1024) {
+      if (file.size > 4.5 * 1024 * 1024) {
+        // Fichier trop gros pour parse-document (limite body Vercel/Nginx) → OCR direct
         needsOCR = true
       } else {
         // Étape 1 : extraction texte (rapide, pas d'IA)
@@ -112,10 +112,7 @@ function CreatePageInner() {
       if (needsOCR) {
         setProcessingStep('Scan détecté, lecture par IA...')
 
-        if (file.size > 20 * 1024 * 1024) {
-          toast.error('Fichier trop volumineux (max 20 Mo)')
-          return
-        }
+        // Gemini Files API accepte jusqu'à 2GB — pas de limite ici
 
         let ocrSuccess = false
         for (let attempt = 0; attempt < 3; attempt++) {
@@ -268,6 +265,7 @@ function CreatePageInner() {
           text: selectedText,
           fullText: rawText,
           chapters: chapters.length > 0 ? chapters : undefined,
+          skipIndices: playedIndices.length > 0 ? playedIndices : undefined,
           config: { nb_questions: nbQuestions, timer_seconds: timerSeconds },
         }),
       })

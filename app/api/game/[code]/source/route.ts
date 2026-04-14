@@ -24,6 +24,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const config = game.config as {
     source_text?: string
     chapters?: Array<{ title: string; startIndex: number; endIndex: number }>
+    played_question_indices?: number[]
   }
 
   if (!config.source_text) {
@@ -34,5 +35,6 @@ export async function GET(req: NextRequest, { params }: Params) {
     mode: game.mode,
     text: config.source_text,
     chapters: config.chapters ?? [],
+    playedIndices: config.played_question_indices ?? [],
   })
 }

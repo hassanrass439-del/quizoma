@@ -48,7 +48,17 @@ export async function POST(req: NextRequest, { params }: Params) {
       })
     }
 
-    await serviceSupabase.from('games').update({ status: 'finished' }).eq('id', game.id)
+    // Sauvegarder les indices des questions jouées dans le config
+    const gameConfig = game.config as Record<string, unknown>
+    const currentIndex = (gameConfig.current_question_index as number) ?? 0
+    const playedIndices = Array.from({ length: currentIndex + 1 }, (_, i) => i)
+    const previousPlayed = (gameConfig.played_question_indices as number[]) ?? []
+    const allPlayed = [...new Set([...previousPlayed, ...playedIndices])]
+
+    await serviceSupabase.from('games').update({
+      status: 'finished',
+      config: { ...gameConfig, played_question_indices: allPlayed },
+    }).eq('id', game.id)
     await serverBroadcast(`game:${code}`, 'GAME_OVER', { final_ranking: finalRanking })
 
     return NextResponse.json({ ok: true })

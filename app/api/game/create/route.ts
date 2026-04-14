@@ -18,8 +18,9 @@ const schema = z.object({
     startIndex: z.number(),
     endIndex: z.number(),
   })).optional(),
+  skipIndices: z.array(z.number()).optional(),
   config: z.object({
-    nb_questions: z.number().int().min(1).max(30),
+    nb_questions: z.number().int().min(1).max(50),
     timer_seconds: z.number().int().min(10).max(120),
   }),
 })
@@ -43,7 +44,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Données invalides', details: parsed.error.flatten() }, { status: 400 })
     }
 
-    const { mode, text, fullText, chapters: inputChapters, config } = parsed.data
+    const { mode, text, fullText, chapters: inputChapters, skipIndices, config } = parsed.data
+    const skipSet = new Set(skipIndices ?? [])
     const cleanedText = cleanText(text)
     const fingerprint = textFingerprint(cleanedText)
 
@@ -70,6 +72,7 @@ export async function POST(req: NextRequest) {
           timer_seconds: config.timer_seconds,
           text_fingerprint: fingerprint,
           source_text: fullText || text,
+          played_question_indices: skipIndices ?? [],
           ...(inputChapters && inputChapters.length > 0 ? { chapters: inputChapters } : {}),
         },
       })
@@ -149,8 +152,11 @@ export async function POST(req: NextRequest) {
         const blocks = parseQCMBlocks(cleanedText)
         console.log('[create] QCM blocks found:', blocks.length)
 
+        // Filtrer les questions déjà jouées (skip)
         const questionsToInsert = blocks.length > 0 ? blocks : [cleanedText]
-        const finalBlocks = questionsToInsert.slice(0, config.nb_questions)
+        const available = questionsToInsert.filter((_, i) => !skipSet.has(i))
+        console.log('[create] Available after skip:', available.length, '/ total:', questionsToInsert.length, '/ skip:', skipSet.size)
+        const finalBlocks = available.slice(0, config.nb_questions)
 
         const { error: qInsertErr } = await serviceSupabase.from('questions').insert(
           finalBlocks.map((block, i) => ({

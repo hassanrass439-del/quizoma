@@ -21,9 +21,12 @@ interface Props {
   questions: Question[]
   isHost: boolean
   hasSource: boolean
+  mode: 'bluff' | 'annales'
+  totalQuestionsInSource: number
+  playedQuestionCount: number
 }
 
-export function ResultsClient({ code, gameId, ranking, questions, isHost, hasSource }: Props) {
+export function ResultsClient({ code, gameId, ranking, questions, isHost, hasSource, mode, totalQuestionsInSource, playedQuestionCount }: Props) {
   const router = useRouter()
   const [saveState, setSaveState] = useState<'idle' | 'form' | 'saved'>('idle')
   const [quizTitle, setQuizTitle] = useState(`Quiz du ${new Date().toLocaleDateString('fr-FR')}`)
@@ -69,16 +72,23 @@ export function ResultsClient({ code, gameId, ranking, questions, isHost, hasSou
         {/* ── Actions ── */}
         <div className="space-y-3">
 
-          {/* Action A — Continuer avec un autre axe (host only) */}
-          {isHost && hasSource && (
+          {/* Action A — Continuer (host only) */}
+          {isHost && hasSource && (playedQuestionCount < totalQuestionsInSource) && (
             <button
-              onClick={() => router.push(`/create?reuse=${code}`)}
+              onClick={() => router.push(`/create?reuse=${code}&skip=${playedQuestionCount}`)}
               className="w-full flex items-center gap-4 bg-[#6c3ff5]/10 border border-[#6c3ff5]/30 rounded-xl p-4 text-left hover:bg-[#6c3ff5]/20 transition-all active:scale-[0.98]"
             >
               <RefreshCw size={22} className="text-[#cbbeff]" />
               <div className="flex-1">
-                <p className="text-text font-bold text-sm">Continuer avec un autre axe</p>
-                <p className="text-text-muted text-xs">Rejouer sur un autre chapitre du même cours</p>
+                <p className="text-text font-bold text-sm">
+                  {mode === 'bluff' ? 'Continuer avec un autre axe' : 'Continuer sur le reste des questions'}
+                </p>
+                <p className="text-text-muted text-xs">
+                  {mode === 'bluff'
+                    ? 'Rejouer sur un autre chapitre du même cours'
+                    : `${totalQuestionsInSource - playedQuestionCount} questions restantes`
+                  }
+                </p>
               </div>
             </button>
           )}
