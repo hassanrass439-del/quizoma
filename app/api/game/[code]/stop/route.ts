@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     const { data: game } = await serviceSupabase
       .from('games')
-      .select('id, host_id, status')
+      .select('id, host_id, status, config')
       .eq('code', code)
       .single()
 
