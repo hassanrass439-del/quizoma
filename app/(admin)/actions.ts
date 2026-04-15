@@ -10,11 +10,11 @@ async function requireAdmin() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('*')
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') throw new Error('Accès refusé')
+  if ((profile as unknown as { role?: string })?.role !== 'admin') throw new Error('Accès refusé')
   return { user, supabase }
 }
 

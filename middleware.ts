@@ -33,11 +33,11 @@ export async function middleware(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('*')
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') {
+  if ((profile as unknown as { role?: string })?.role !== 'admin') {
     return NextResponse.redirect(new URL('/unauthorized', request.url))
   }
 
