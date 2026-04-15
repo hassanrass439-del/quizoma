@@ -8,5 +8,11 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   // Si déjà connecté, rediriger vers le dashboard
   if (user) redirect('/dashboard')
 
-  return <>{children}</>
+  return (
+    <div className="flex justify-center min-h-dvh">
+      <div className="relative w-full max-w-[430px] min-h-dvh bg-[#12121f] flex flex-col shadow-[0_0_60px_rgba(0,0,0,0.6)]" style={{ transform: 'translateZ(0)' }}>
+        {children}
+      </div>
+    </div>
+  )
 }

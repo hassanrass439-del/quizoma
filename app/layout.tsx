@@ -80,10 +80,8 @@ export default function RootLayout({
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} ${epilogue.variable} ${manrope.variable}`}
     >
-      <body className="bg-[#080810] text-game antialiased min-h-dvh flex justify-center">
-        <div className="relative w-full max-w-[430px] min-h-dvh bg-[#12121f] flex flex-col shadow-[0_0_60px_rgba(0,0,0,0.6)]" style={{ transform: 'translateZ(0)' }}>
-          {children}
-        </div>
+      <body className="bg-[#080810] text-game antialiased min-h-dvh">
+        {children}
         <Toaster
           position="top-center"
           toastOptions={{

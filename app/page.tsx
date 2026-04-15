@@ -16,7 +16,8 @@ export default async function LandingPage() {
   ]
 
   return (
-    <div className="min-h-dvh flex flex-col bg-surface-1 px-4">
+    <div className="flex justify-center min-h-dvh">
+    <div className="relative w-full max-w-[430px] min-h-dvh bg-[#12121f] flex flex-col shadow-[0_0_60px_rgba(0,0,0,0.6)] px-4" style={{ transform: 'translateZ(0)' }}>
       <div className="flex flex-col items-center justify-center flex-1 py-12 gap-8 max-w-[390px] mx-auto w-full">
         {/* Hero */}
         <div className="text-center space-y-3">
@@ -83,6 +84,7 @@ export default async function LandingPage() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   )
 }
