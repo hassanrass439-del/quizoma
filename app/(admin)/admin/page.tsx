@@ -22,14 +22,14 @@ export default async function AdminDashboard() {
   // Parties récentes
   const { data: recentGames } = await supabase
     .from('games')
-    .select('id, code, mode, status, created_at, host_id, config, profiles:host_id(pseudo)')
+    .select('*')
     .order('created_at', { ascending: false })
     .limit(10)
 
   // Utilisateurs récents
   const { data: recentUsers } = await supabase
     .from('profiles')
-    .select('id, pseudo, avatar_id, total_games, total_score, created_at')
+    .select('*')
     .order('created_at', { ascending: false })
     .limit(5)
 
@@ -96,7 +96,7 @@ export default async function AdminDashboard() {
           </thead>
           <tbody>
             {(recentGames ?? []).map((game) => {
-              const host = Array.isArray(game.profiles) ? game.profiles[0] : game.profiles
+              const host = { pseudo: game.host_id?.slice(0, 8) ?? '?' }
               const statusColors: Record<string, string> = {
                 lobby: 'bg-[#FBBF24]/15 text-[#FBBF24]',
                 question: 'bg-[#34D399]/15 text-[#34D399]',
@@ -114,7 +114,7 @@ export default async function AdminDashboard() {
                       {game.mode === 'bluff' ? 'BLUFF' : 'QCM'}
                     </span>
                   </td>
-                  <td className="px-6 py-3 text-sm text-[#cac3d9]">{(host as { pseudo?: string })?.pseudo ?? '?'}</td>
+                  <td className="px-6 py-3 text-sm text-[#cac3d9] font-mono">{host.pseudo}</td>
                   <td className="px-6 py-3">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColors[game.status] ?? statusColors.finished}`}>
                       {game.status}

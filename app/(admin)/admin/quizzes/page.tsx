@@ -6,7 +6,7 @@ export default async function AdminQuizzesPage() {
 
   const { data: quizzes } = await supabase
     .from('quiz_library')
-    .select('id, title, mode, total_questions, play_count, created_at')
+    .select('*')
     .order('created_at', { ascending: false })
     .limit(100)
 
